@@ -2,7 +2,7 @@ function [spectrum, freq, setup] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0beta (build 30. 7. 2021)       e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 beta r1 (build 2. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -100,25 +100,26 @@ function [spectrum, freq, setup] = autofft(xs, ts, userSetup)
 %
 %     - 'SpectralUnit' - [ {pow} | rms | pk | pp | psd | rsd ]
 %       Specifies absolute unit used to compute estimates from:
-%        - 'pow', 'power' - autospectrum (square of rms magnitudes)  {def.}
-%        - 'rms'          - linear spectrum with rms magnitude
-%        - 'pk', '0-pk'   - linear spectrum with 0-peak magnitude
-%        - 'pp', 'pk-pk'  - linear spectrum with peak-peak magnitude
-%        - 'psd'          - power spectral density
-%        - 'rsd','rmssd'  - root mean square of power spectral density 
+%       - 'pow', 'power' - autospectrum (square of rms magnitudes)  {def.}
+%       - 'rms'          - linear spectrum with rms magnitude
+%       - 'pk', '0-pk'   - linear spectrum with 0-peak magnitude
+%       - 'pp', 'pk-pk'  - linear spectrum with peak-peak magnitude
+%       - 'psd'          - power spectral density
+%       - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-% Changelist
-% v1.3.0 - A user manual in the form of a Live Script has been added.
-%        - The setup of the FFT analyser is now specified using 'setup'
-%          structure. Output variable setup can be used also as an input.
-%          Structure fftset used in version 1.2 can be also used to specify
-%          the analyser setup. However, fftset is no longer documented.
-%        - This release changes handling of the setup of the FFT analyser.
-%          Now, the setup can be used also as an input parameter, i.e.:
-%          [s1, f1, setup] = autofft(xs1, ts1);
-%          [s2, f2]        = autofft(xs2, ts2, setup);
-%        - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
-%                   decreased to 'FFTLength' - 1.
+% What's new in v1.3?
+% - A brand new user manual is a part of this release.
+% - Syntax change: The setup of the FFT analyser is now specified using
+%                  setup structure; parameters used in the setup strructure
+%                  have the same names as parameters used in pspectrum and
+%                  stft functions. Output variable  setup can also be used
+%                  as input. Structure fftset used in the previous versions
+%                  can be also used to specify the analyser setup. However,
+%                  fftset is no longer documented.
+% - New functionality: Overlap length can be now specified in samples using 
+%                     'OverlapLength' parameter.
+% - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
+%            decreased to a realistic value.
 
 %% nargin check
 if nargin < 2
@@ -156,7 +157,7 @@ setup = struct("SamplingFrequency",    fs, ...
                "jwWeigthing",          "none");
 setupFields = fieldnames(setup);
 
-%% Set user-specified parameters
+% Set user-specified parameters
 if nargin == 3
     % Convert fftset to setup (due to compatibility with v1.1 and v1.2)
     userFields = fieldnames(userSetup);
@@ -177,47 +178,46 @@ if nargin == 3
             setup.(setupFields{i}) = userSetup.(userFields{ind});
         end
     end
-    
-    % Check if there is user-defined FFT length
-    if ~isnan(setup.FFTLength)
-        if setup.FFTLength > setup.DataLength
-            setup.FFTLength = setup.DataLength;
-            warning("Specified FFT length is too high. " + ...
-                    "FFT length has been changed to " + ...
-                    num2str(setup.FFTLength, '%d') + " samples.");
-        end
-
-    % Check if there is user-defined time resolution  
-    elseif ~isnan(setup.TimeResolution)
-        if round(setup.TimeResolution * fs) > setup.DataLength
-            setup.FFTLength = setup.DataLength;
-            warning("Specified time resolution is too long. " + ...
-                    "Time resolution has been changed to " + ...
-                    num2str(setup.FFTLength / fs, '%.2g') + " s.");
-        else
-            setup.FFTLength = round(setup.TimeResolution * fs);
-        end
-     
-    % Check if there is user-defined frequency resolution
-    elseif ~isnan(setup.FrequencyResolution)
-        if round(fs / setup.FrequencyResolution) > setup.DataLength
-            setup.FFTLength = setup.DataLength;
-            warning("Specified frequency resolution cannot be reached. " + ...
-                    "Frequency resolution has been changed to " + ...
-                    num2str(fs / setup.FFTLength, '%.2g') + " Hz.");
-        else
-            setup.FFTLength = round(fs / setup.FrequencyResolution);
-        end
-        
-    % FFT length, time resolution and frequency resolution are not defined 
-    else
-        setup.FFTLength = setup.DataLength;
-    end
-    
-    % Compute exact time resolution and frequency resolution
-    setup.FrequencyResolution = fs / setup.FFTLength;
-    setup.TimeResolution      = setup.FFTLength / fs;
 end
+
+%% Generate remaining parameters in the analyser setup
+% Check if there is user-defined FFT length
+if ~isnan(setup.FFTLength)
+    if setup.FFTLength > setup.DataLength
+        setup.FFTLength = setup.DataLength;
+        warning("Specified FFT length is too high. " + ...
+                "FFT length has been changed to " + ...
+                num2str(setup.FFTLength, '%d') + " samples.");
+    end
+% Check if there is user-defined time resolution  
+elseif ~isnan(setup.TimeResolution)
+    if round(setup.TimeResolution * fs) > setup.DataLength
+        setup.FFTLength = setup.DataLength;
+        warning("Specified time resolution is too long. " + ...
+                "Time resolution has been changed to " + ...
+                num2str(setup.FFTLength / fs, '%.2g') + " s.");
+    else
+        setup.FFTLength = round(setup.TimeResolution * fs);
+    end
+% Check if there is user-defined frequency resolution
+elseif ~isnan(setup.FrequencyResolution)
+    if round(fs / setup.FrequencyResolution) > setup.DataLength
+        setup.FFTLength = setup.DataLength;
+        warning("Specified frequency resolution cannot be reached. " + ...
+                "Frequency resolution has been changed to " + ...
+                num2str(fs / setup.FFTLength, '%.2g') + " Hz.");
+    else
+        setup.FFTLength = round(fs / setup.FrequencyResolution);
+    end
+% Do if all FFT length, time res. and freq. resolution are not defined 
+else
+    setup.FFTLength = setup.DataLength;
+end
+
+% Compute exact time resolution and frequency resolution
+setup.FrequencyResolution = fs / setup.FFTLength;
+setup.TimeResolution      = setup.FFTLength / fs;
+
 
 % Generate frequency vector
 freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
@@ -359,30 +359,30 @@ end
 
 % Evaluation of spectral unit
 switch lower(setup.SpectralUnit)
-    case "rms"           % Linear spectrum with rms magnitude
+    case "rms"                          % RMS magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:));
         setup.SpectralUnit = "RMS";
-    case {"pk", "0-pk"}            % Linear spectrum with 0-peak magnitude
+    case {"pk", "0-pk", "peak"}         % 0-peak magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = 2 * abs(tSpectrum(2:maxf,:,:));
         setup.SpectralUnit    = "0-pk";
-    case {"pp", "pk-pk"}   % Linear spectrum with peak-peak magnitude
+    case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = 4 * abs(tSpectrum(2:maxf,:,:));        
         setup.SpectralUnit    = "pk-pk";
-    case {"asd", "psd"}    % Power spectral density
+    case {"asd", "psd"}                 % Power spectral density
         tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:)) ...
                                  / setup.WindowNoiseBandwidth;
         tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:)) ...
                                  / setup.WindowNoiseBandwidth;
         setup.SpectralUnit    = "PSD";
-    case {"rsd", "rmssd"}  % Root mean square spectral density (RMS of PSD)
+    case {"rsd", "rmssd"}               % Root mean square spectral density
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:)) / setup.WindowNoiseBandwidth;
         tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:)) ...
                                  / setup.WindowNoiseBandwidth;
         setup.SpectralUnit    = "RMSSD";
-    otherwise              % Autospectrum
+    otherwise                           % Autospectrum / power spectrum
         tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:));
         setup.SpectralUnit    = "power";
