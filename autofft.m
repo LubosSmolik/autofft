@@ -1,14 +1,14 @@
-function [spectrum, freq, setup] = autofft(xs, ts, fftset)
+function [spectrum, freq, setup] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
-%  Copyright (c) 2017-2020         Lubos Smolik, University of West Bohemia
-% v1.2.4 (build 15. 4. 2020)             e-mail: carlist{at}ntis.zcu.cz
+%  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
+% v1.3.0beta (build 30. 7. 2021)       e-mail: carlist{at}ntis.zcu.cz
 %
-% This code is published under BSD-2-Clause License.
+% This code is published under BSD-3-Clause License.
 %
 % [s, f] = autofft(xs, fs)
 % [s, f] = autofft(xs, ts)
-% [___]  = autofft(___, options)
+% [___]  = autofft(___, setup)
 % [___, setup] = autofft(___)
 %
 % [s, f] = autofft(xs, fs) returns the DFT or STFT s of xs using sampling
@@ -16,52 +16,69 @@ function [spectrum, freq, setup] = autofft(xs, ts, fftset)
 %   STFT s is evaluated. xs can be either a vector or an array consisting
 %   of column vectors.
 % [s, f] = autofft(xs, ts) returns the DFT or STFT s of xs using a vector
-%   of time stamps ts (s). Also returns the frequencies f at which the DFT
-%   or STFT s is evaluated. 
-% [___]  = autofft(___, options) performs the DFT or STFT name-value pair
-%   arguments specified in structure options.
+%   of time stamps ts. Also returns the frequencies f at which the DFT or 
+%   STFT s is evaluated. 
+% [___]  = autofft(___, setup) performs the DFT or STFT using name-value
+%   pair arguments specified in structure setup.
 % [s, f, setup] = autofft(___) also returns the setup of the FFT analyser.
 %       
-% Construction of options:
-%	options = struct('param', 'value', ...);
+% Construction of setup:
+%	setup = struct('param', 'value', ...);
 %
-%	List of parameters:
-%     - 'nwin' - [ positive integer {length(xs) or size(xs, 2)} ]
+%	List of parameters (all parameters and values are case insensitive):
+%     - 'FFTLength' - [ positive integer {length(xs) or size(xs, 2)} ]
 %       The length of each segment in samples, i.e. number of DFT points.
 %
-%     - 'twin' - [ real positive scalar ]
+%     - 'TimeResolution' - [ real positive scalar ]
 %       The duration of each segment in seconds.
 %
-%     - 'df' - [ real positive scalar ]
+%     - 'FrequencyResolution' - [ real positive scalar ]
 %       The desired frequency resolution of the analyser in Hz.
 %
 %       Note: Default values of the three parameters above are set so that
 %             the input data are treated as one segment, i.e. no spectral 
 %             averaging is performed.
 %             If more than one of these three parameters is specified,
-%             'nwin' is preferred over 'twin' and 'twin' is preferred over
-%             'df'.
+%             'FFTLength', 'TimeResolution' and 'FrequencyResolution' have
+%             the highest, middle and lowest priority, respectively.
 %
-%     - 'lowpass' - [ positive scalar in (0, fs/2) {fs/2} ]
+%     - 'HighPassFrequency' - [ {NaN} | real scalar ]
+%       Specifies the passband frequency of an elliptic highpass filter.
+%       The filter has a slope -20 dB/dec from the passband frequency.
+%       The exact filtering process depends on the parameter value:
+%       - NaN             - no highpass filtering
+%       - 0               - DC filtering with the use of detrend function
+%       - positive scalar - DC filtering and subsequent highpass filtering
+%       - negative scalar - highpass filtering without DC filtering
+%
+%     - 'LowPassFrequency' - [ positive scalar in (0, fs/2) {fs/2} ]
 %       Specifies the maximum frequency in Hz over which autofft computes
 %       estimates. Recommended value is fs/2.56.
 %
-%     - 'window' - [ character {'u'} | vector ]
+%     - 'Window' - [ character {'u'} | string | vector ]
 %       Specifies a window function which is than multiplied with each
 %       segment. The window function can be specified either as a vector
-%       or using a character from the list below:
-%       - 'b' - Blackmann-Harris window
-%       - 'f' - flat-top window
-%       - 'h' - Hann window
-%       - 'm' - Hamming window
-%       - 'k' - Kaiser window with shape factor beta = 0.5
-%       - 'kA.A' - Kaiser window with shape factor beta = A.A
-%       - 'u' - uniform (rectangular) window                      {default}
+%       or using a character or a string from the list below:
+%        - 'b' - Blackmann-Harris window
+%        - 'f' - flat-top window
+%        - 'h' - Hann window
+%        - 'm' - Hamming window
+%        - 'k' - Kaiser window with shape factor beta = 0.5
+%        - 'kA.A' - Kaiser window with shape factor beta = A.A
+%        - 'u' - uniform (rectangular) window                      {default}
+%       Alternatively, a string containing a name of the desired window
+%       can be used instead of the character.
 %
-%     - 'overlap' - [ real scalar in [0, 100) {50} ] 
-%        Overlap percentage of two successive segments.
+%     - 'OverlapLength' - [ 50 % of 'FFTLength' | integer ] 
+%        Number of overlapped samples of two successive segments. If both
+%        'OverlapLength' and 'OverlapPercentage' are specified, only 
+%        'OverlapLength' is considered.
 %
-%     - 'averaging' - [ energy | {linear} | max | median | min | var | none]
+%     - 'OverlapPercentage' - [ real scalar in [0, 100] {50} ] 
+%        Overlap percentage of two successive segments. Use value 100 for
+%        the maximum possible overlap, i.e. 'FFTLength' - 1.
+%
+%     - 'Averaging' - [ energy | {linear} | max | median | min | var | none]
 %       Specifies the spectral averaging mode from: 
 %       - 'energy', 'rms'     - energy (rms) averaging
 %       - 'linear', 'lin'     - linear averaging                  {default}
@@ -71,7 +88,7 @@ function [spectrum, freq, setup] = autofft(xs, ts, fftset)
 %       - 'var'               - returns variance of specified spectral unit
 %       - 'none'              - returns the STFT with no spectral averaging
 %
-%     - 'jw' - [ 1/jw2 | 1/jw | {1} | jw | jw2 ]
+%     - 'jwWeigthing' - [ 1/jw2 | 1/jw | {1} | jw | jw2 ]
 %       Use this parameter to apply a frequency-domain post-weighting to
 %       the output spectra, for example to estimate displacement from
 %       acceleration. The parameter can be specified as follows:
@@ -81,7 +98,7 @@ function [spectrum, freq, setup] = autofft(xs, ts, fftset)
 %          - 'jw'    - single differentiation
 %          - 'jw2'   - double differentiation
 %
-%     - 'unit' - [ {pow} | rms | pk | pp | psd | rsd ]
+%     - 'SpectralUnit' - [ {pow} | rms | pk | pp | psd | rsd ]
 %       Specifies absolute unit used to compute estimates from:
 %        - 'pow', 'power' - autospectrum (square of rms magnitudes)  {def.}
 %        - 'rms'          - linear spectrum with rms magnitude
@@ -91,320 +108,308 @@ function [spectrum, freq, setup] = autofft(xs, ts, fftset)
 %        - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % Changelist
-% v1.24  - Documentation has been improved.
-%        - Results of the STFT of multiple signals are now returned as 3D
-%          array rather than cell array of 2D arrays.
-%        - New types of averaging: median filter and variance of spectral unit. 
-%        - Performance has been improved significantly.
-%        - Accuracy of PSD and RMSSD estimates has been slightly improved.
-%        - Dealing with a content at the Nyquist frequency has been improved.
-% v1.23 - User can define frequency resolution of the analyser.
-%       - The window function can be directly specified as a vector.
-%       - The analyser setup can be returned as an output variable.
-%       - Warning messages are now displayed.
-% v1.22a- Error occuring during peak hold averaging has been fixed.
-% v1.22 - The Kaiser-Bessel window parameter (beta) can now be specified.
-%       - Autospectrum is now properly square of RMS rather than 0-Pk.
-%       - Relations for evaluation of PSD and RMSPSD now consider the noise
-%         power bandwidth of the used window function. 
-% v1.21 - New function - low-pass filtering
-%       - New types of averaging - no averaging     ('none')
-%                                - energy averaging ('energy' or 'rms')
-%                                - minimum value    ('min')
-%       - Options for 'unit' and 'peak' has been merged (into 'unit').
-%       - Relations for evaluation of PSD amd RMSPSD have been fixed.
-%       - Dealing with a content at the Nyquist frequency has been fixed.
-% v1.2  - Input parameters are now specified in a structured variable.
-%       - v1.2 is not compatible with v1.12 and older versions!
-% v1.12 - Input can now be an array.
-% v1.11 - Performance optimization
-%       - Handling of input vectors with the even number of samples has
-%         been fixed.
-% v1.1  - Handling of non-uniform window functions has been fixed.
-%       - Parameters nwin and overlap can now be skipped by user.
-%
+% v1.3.0 - A user manual in the form of a Live Script has been added.
+%        - The setup of the FFT analyser is now specified using 'setup'
+%          structure. Output variable setup can be used also as an input.
+%          Structure fftset used in version 1.2 can be also used to specify
+%          the analyser setup. However, fftset is no longer documented.
+%        - This release changes handling of the setup of the FFT analyser.
+%          Now, the setup can be used also as an input parameter, i.e.:
+%          [s1, f1, setup] = autofft(xs1, ts1);
+%          [s2, f2]        = autofft(xs2, ts2, setup);
+%        - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
+%                   decreased to 'FFTLength' - 1.
+
 %% nargin check
 if nargin < 2
-    error('Not enough input arguments.');
+    error("Not enough input arguments.");
 elseif nargin > 3
-    error('Too many input arguments.');
+    error("Too many input arguments.");
 end
-%
+
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1         % samples
     xs = xs(:);                     
 end
 if size(ts(:), 1) == 1      % sampling frequency
-	fs = ts;                    
+    fs = ts;                    
 else
     fs = 1 / (ts(2) - ts(1)); 
 end
-%
-%% Specify the default setup
-defset = struct('nwin', size(xs, 1), ...
-                'overlap', 50, ...
-                'lowpass', fs/2, ...
-                'window', 'u', ...
-                'averaging', 'lin', ...
-                'jw', '1', ...
-                'unit', 'pow');
-deffields = fieldnames(defset);
-%
-%% Set analyser parameters
-if nargin == 2  % use default fftset
-    fftset = defset;
-else            % use user-defined fftset  
-    % Check if there is user-defined 'nwin' parameter
-    if isfield(fftset, 'nwin') && fftset.nwin > size(xs, 1)
-        fftset.nwin = size(xs, 1);
-        warning("Window function has more samples than input data. " + ...
-                "Length of the window function has been changed to " + ...
-                num2str(fftset.nwin, '%d') + " samples.");
 
-    % Check if there is user-defined 'twin' parameter        
-    elseif isfield(fftset, 'twin')
-        if round(fftset.twin * fs) > size(xs, 1)
-            fftset.nwin = size(xs, 1);
-            warning("window function is longer than input data. " + ...
-                    "Length of the window function has been changed " + ...
-                    "to " + num2str(fftset.nwin / fs, '%.2g') + " s.");           
-        else
-            fftset.nwin = round(fftset.twin * fs);
-        end
-        
-    % Check if there is user-defined 'df' parameter
-    elseif isfield(fftset, 'df')
-        if round(fs / fftset.df) > size(xs, 1)
-            fftset.nwin = size(xs, 1);
-            warning("Specified frequency resolution cannot be reached. " + ...
-                    "The frequency resolution has been changed to " + ...
-                    num2str(fs / fftset.nwin, '%.2g') + " Hz.");           
-        else
-            fftset.nwin = round(fs / fftset.df);
-        end
-    end
-    
-    % Set unspecified parameters to default
-    for i = 1:numel(deffields)        
-        if isfield(fftset, deffields{i}) == 0
-            fftset.(deffields{i}) = defset.(deffields{i});
-        end
-    end
-end
-
-% Generate frequency vector
-freq = (fs * (0:(fftset.nwin/2)) / fftset.nwin)';
-
-% Set allowed frequencies for the limitation of the maximum freqeuncy
-freq = freq(freq <= fftset.lowpass);
-maxf = size(freq, 1);
-
-% Calculate number of overlaping samples
-fftset.overlap = round(fftset.nwin * fftset.overlap / 100);
-% Set indices for the signal segmentation
-imax = floor((size(xs, 1)-fftset.overlap) / (fftset.nwin-fftset.overlap));
-                                                % number of windows
-ind = zeros(imax,2);                            % matrix of indices
-ni = 1;                                         % pointer
-for i = 1:imax                                  % cycle through windows
-    ind(i,1) = ni; 
-    ni = ni + fftset.nwin - 1;
-    ind(i,2) = ni;
-    ni = ni - fftset.overlap + 1;
-end
-
-% Generate a structure array containing the analyser setup
+%% Generate a structure array containing a default analyser setup
 setup = struct("SamplingFrequency",    fs, ...
                "DataDuration",         size(xs, 1) / fs, ...
                "DataLength",           size(xs, 1), ...
-               "LowPassFrequency",     fftset.lowpass, ...
-               "FFTLength",            fftset.nwin, ...
-               "FrequencyResolution",  fs / fftset.nwin, ...
-               "TimeResolution",       fftset.nwin / fs, ...
+               "FFTLength",            NaN, ...
+               "TimeResolution",       NaN, ...
+               "FrequencyResolution",  NaN, ...
+               "HighPassFrequency",    NaN, ...
+               "LowPassFrequency",     fs / 2, ...
                "Window",               "uniform", ...
                "WindowNoiseBandwidth", 1, ...
-               "OverlapLength",        100 * fftset.overlap / fftset.nwin, ...
-               "OverlapPercentage",    100 * fftset.overlap / fftset.nwin, ...
-               "Averaging",            "none", ...
-               "NumberOfAverages",     imax, ...
+               "OverlapLength",        NaN, ...
+               "OverlapPercentage",    50, ...
+               "Averaging",            "linear", ...
+               "NumberOfAverages",     NaN, ...
                "SpectralUnit",         "power", ...
                "jwWeigthing",          "none");
+setupFields = fieldnames(setup);
 
-% Set a window function
-if isnumeric(fftset.window)
-    % Use the custom user-specified window function
-    if length(fftset.window) == fftset.nwin
-        % Add info to the structure array containing the analyser setup
-        setup.windowFunction = "custom";
-    else
-        % Interpolate missing values in the window function if necessary
-        try   % Use the modified Akima interpolation (v2019b or newer)
-            fftset.window = makima(linspace(0,1,length(fftset.window)), ...
-                                 fftset.window, linspace(0,1,fftset.nwin));
-        catch % Use the spline interpolation (v2019a or older)
-            fftset.window = spline(linspace(0,1,length(fftset.window)), ...
-                                 fftset.window, linspace(0,1,fftset.nwin));
+%% Set user-specified parameters
+if nargin == 3
+    % Convert fftset to setup (due to compatibility with v1.1 and v1.2)
+    userFields = fieldnames(userSetup);
+    oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "unit" "jw"];
+    newFields = [4 5 6 7 8 12 15 16];
+    
+    for i = 1:length(userFields)
+        ind = strcmpi(userFields{i}, oldFields);
+        if any(ind)
+            userSetup.(setupFields{newFields(ind)}) = userSetup.(userFields{i});
+        end
+    end
+    
+    % Merge the user-specified setup with the default analyser setup
+    for i = 4:length(setupFields)
+        ind = strcmpi(setupFields{i}, userFields);
+        if any(ind)
+            setup.(setupFields{i}) = userSetup.(userFields{ind});
+        end
+    end
+    
+    % Check if there is user-defined FFT length
+    if ~isnan(setup.FFTLength)
+        if setup.FFTLength > setup.DataLength
+            setup.FFTLength = setup.DataLength;
+            warning("Specified FFT length is too high. " + ...
+                    "FFT length has been changed to " + ...
+                    num2str(setup.FFTLength, '%d') + " samples.");
+        end
+
+    % Check if there is user-defined time resolution  
+    elseif ~isnan(setup.TimeResolution)
+        if round(setup.TimeResolution * fs) > setup.DataLength
+            setup.FFTLength = setup.DataLength;
+            warning("Specified time resolution is too long. " + ...
+                    "Time resolution has been changed to " + ...
+                    num2str(setup.FFTLength / fs, '%.2g') + " s.");
+        else
+            setup.FFTLength = round(setup.TimeResolution * fs);
+        end
+     
+    % Check if there is user-defined frequency resolution
+    elseif ~isnan(setup.FrequencyResolution)
+        if round(fs / setup.FrequencyResolution) > setup.DataLength
+            setup.FFTLength = setup.DataLength;
+            warning("Specified frequency resolution cannot be reached. " + ...
+                    "Frequency resolution has been changed to " + ...
+                    num2str(fs / setup.FFTLength, '%.2g') + " Hz.");
+        else
+            setup.FFTLength = round(fs / setup.FrequencyResolution);
         end
         
-        % Print warning and add info to the information resource
-        warning("The window function has been reinterpolated to " + ...
-                num2str(fftset.nwin, "%d") + " samples.");
-        % Add info to the structure array containing the analyser setup
-        setup.windowFunction = "custom reinterpolated to " + ...
-                       num2str(fftset.nwin, "%d") + " samples ";
+    % FFT length, time resolution and frequency resolution are not defined 
+    else
+        setup.FFTLength = setup.DataLength;
     end
+    
+    % Compute exact time resolution and frequency resolution
+    setup.FrequencyResolution = fs / setup.FFTLength;
+    setup.TimeResolution      = setup.FFTLength / fs;
+end
+
+% Generate frequency vector
+freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
+maxf = size(freq, 1);
+
+% Calculate number of overlaping samples
+if isnan(setup.OverlapLength)
+	setup.OverlapLength = round(setup.FFTLength * setup.OverlapPercentage / 100);
+end
+
+% Check whether the overlap length is permissible
+if setup.OverlapLength >= setup.FFTLength
+    setup.OverlapLength = setup.FFTLength - 1;
+end
+    
+% Recalculate overlap percentage due to rounding
+setup.OverlapPercentage = 100 * setup.OverlapLength / setup.FFTLength;
+
+% Calculate the number of segments and segment indices
+setup.NumberOfAverages = floor((setup.DataLength - setup.OverlapLength) / ...
+                               (setup.FFTLength - setup.OverlapLength));
+ind = zeros(setup.NumberOfAverages, 2);         % matrix of indices
+ni  = 1;                                        % pointer
+for i = 1:setup.NumberOfAverages                % cycle through segments
+    ind(i, 1) = ni; 
+    ni = ni + setup.FFTLength - 1;
+    ind(i, 2) = ni;
+    ni = ni - setup.OverlapLength + 1;
+end
+
+% Set a window function
+if isnumeric(setup.Window) && length(setup.Window) ~= setup.FFTLength
+    % Interpolate missing values in the window function if necessary
+    try   % Use the modified Akima interpolation (Matlab v2019b or newer)
+        setup.Window = makima(linspace(0, 1, length(setup.Window)), ...
+                              setup.Window, linspace(0,1,setup.FFTLength));
+    catch % Use the spline interpolation (Matlab v2019a or older)
+        setup.Window = spline(linspace(0, 1, length(setup.Window)), ...
+                              setup.Window, linspace(0,1,setup.FFTLength));
+    end
+	warning("The window function has been interpolated to " + ...
+            num2str(setup.FFTLength, "%d") + " samples.");
 else
     % Generate the window function internally
-    [fftset.window, setup.windowFunction] = windowfunc(fftset.window, fftset.nwin);
+    switch lower(extractBefore(setup.Window, min(length(setup.Window), 4)))
+        case {"b", "bla"}  % Blackmann-Harris
+            setup.Window = blackmanharris(setup.FFTLength);
+            windowName   = "Blackmann-Harris";
+        case {"f", "fla"}  % flat-top
+            setup.Window = flattopwin(setup.FFTLength);
+            windowName   = "flat-top";
+        case {"h", "han"}  % Hann
+            setup.Window = hann(setup.FFTLength);
+            windowName   = "Hann";
+        case {"k", "kai"}  % Kaiser-Bessel
+            % Try to calculate parameter beta
+            beta = str2double(regexprep(setup.Window,"[a-zA-Z,=\s]",""));
+
+            if isnan(beta)
+                setup.Window = kaiser(setup.FFTLength, 0.5);
+                windowName   = "Kaiser, b = 0.5";
+            else
+                setup.Window = kaiser(setup.FFTLength, beta);
+                windowName   = "Kaiser, b = " + string(beta);
+            end
+        case {"m", "ham"}  % Hamming
+            setup.Window = hamming(setup.FFTLength);
+            windowName   = "Hamming";
+        otherwise   % uniform
+            setup.Window = rectwin(setup.FFTLength);
+            windowName   = "uniform";
+    end
 end
 
 % Normalise the window function for correct magnitude estimation
-fftset.window = fftset.window / mean(fftset.window);
+setup.Window = setup.Window / mean(setup.Window);
 
 % Calculate the noise power bandwidth of the window function in Hz
-fftset.noiseband = enbw(fftset.window, fs);
+setup.WindowNoiseBandwidth = enbw(setup.Window, fs);
 
-% Add info to the structure array containing the analyser setup
-setup.windowNoiseBandwidth = fftset.noiseband;
+%% Filtering
+if ~isnan(setup.HighPassFrequency)
+    % Remove the mean value from xs
+    if setup.HighPassFrequency >= 0
+        xs = detrend(xs, 0);
+    end
+    
+    % Construct and apply an elliptic high-pass filter
+    if setup.HighPassFrequency ~= 0
+        n     = 1;    % Filter order
+        aPass = 0.1;  % Passband ripple (dB)
+        aStop = 20;   % Stopband attenuation (dB)
+
+        % Construct an FDESIGN object (5x faster than designfilt)
+        h  = fdesign.highpass("N,Fp,Ast,Ap", n, abs(setup.HighPassFrequency), ...
+                                             aStop, aPass, fs);
+        hp = design(h, "ellip");
+        
+        % Filter xs
+        xs = filter(hp, xs);
+    end
+end
 
 %% FFT
 % Preallocate an array for the DFT of individual segments
-tSpectrum = zeros(fftset.nwin, size(xs, 2), imax);
-
+tSpectrum = zeros(setup.FFTLength, size(xs, 2), setup.NumberOfAverages);
 % Fast Fourier transformation of the time-weighted segments
 for i = 1:size(xs, 2)
-    for j = 1:imax
-        tSpectrum(:, i, j) = fft(fftset.window .* xs(ind(j,1):ind(j,2), i), ...
-                                 fftset.nwin);
+    for j = 1:setup.NumberOfAverages
+        tSpectrum(:,i,j) = fft(setup.Window .* xs(ind(j,1):ind(j,2),i));
     end
+end
+
+if exist("windowName", "var")
+    setup.Window = windowName;
 end
 
 % Scaling and application of the jw weigthing
-switch lower(fftset.jw)
-    case '1/jw2'
-        tSpectrum(1:maxf, :, :) = (- 1 ./ (4 * pi^2 * freq.^2)) .* ...
-                                  (tSpectrum(1:maxf, :, :) / fftset.nwin);
+switch lower(setup.jwWeigthing)
+    case {"1/jw2", "double integration"}
+        tSpectrum(1:maxf,:,:) = (- 1 ./ (4 * pi^2 * freq.^2)) .* ...
+                                (tSpectrum(1:maxf,:,:) / setup.FFTLength);
         setup.jwWeigthing = "double integration";
-    case '1/jw'
-        tSpectrum(1:maxf, :, :) = (1 ./ (2i * pi * freq)) .* ...
-                                  (tSpectrum(1:maxf, :, :) / fftset.nwin);
+    case {"1/jw", "single integration"}
+        tSpectrum(1:maxf,:,:) = (1 ./ (2i * pi * freq)) .* ...
+                                (tSpectrum(1:maxf,:,:) / setup.FFTLength);
         setup.jwWeigthing = "single integration";
-    case 'jw'
-        tSpectrum(1:maxf, :, :) = 2i * pi * freq .* ...
-                                  tSpectrum(1:maxf, :, :) / fftset.nwin;
+    case {"jw", "single differentiation"}
+        tSpectrum(1:maxf,:,:) = 2i * pi * freq .* ...
+                                tSpectrum(1:maxf,:,:) / setup.FFTLength;
         setup.jwWeigthing = "single differentiation"; 
-    case 'jw2'
-        tSpectrum(1:maxf, :, :) = - 4 * pi^2 * freq.^2 .* ...
-                                  tSpectrum(1:maxf, :, :) / fftset.nwin;
+    case {"jw2", "double differentiation"}
+        tSpectrum(1:maxf,:,:) = - 4 * pi^2 * freq.^2 .* ...
+                                tSpectrum(1:maxf,:,:) / setup.FFTLength;
         setup.jwWeigthing = "double differentiation"; 
     otherwise
-        tSpectrum(1:maxf, :, :) = tSpectrum(1:maxf, :, :) / fftset.nwin;
+        tSpectrum(1:maxf,:,:) = tSpectrum(1:maxf,:,:) / setup.FFTLength;
 end
 
 % Evaluation of spectral unit
-switch lower(fftset.unit)
-    case 'rms'           % Linear spectrum with rms magnitude
+switch lower(setup.SpectralUnit)
+    case "rms"           % Linear spectrum with rms magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:));
-        setup.spectralUnit = "RMS";
-
-    case 'pk'            % Linear spectrum with 0-peak magnitude
+        setup.SpectralUnit = "RMS";
+    case {"pk", "0-pk"}            % Linear spectrum with 0-peak magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = 2 * abs(tSpectrum(2:maxf,:,:));
-        setup.spectralUnit    = "0-pk";
-
-    case 'pp'            % Linear spectrum with peak-peak magnitude
+        setup.SpectralUnit    = "0-pk";
+    case {"pp", "pk-pk"}   % Linear spectrum with peak-peak magnitude
         tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
         tSpectrum(2:maxf,:,:) = 4 * abs(tSpectrum(2:maxf,:,:));        
-        setup.spectralUnit = "pk-pk";
-
-    case {'asd','psd'}   % Power spectral density
+        setup.SpectralUnit    = "pk-pk";
+    case {"asd", "psd"}    % Power spectral density
         tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:)) ...
-                                 / fftset.noiseband;
-        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj( ...
-                                tSpectrum(2:maxf,:,:)) / fftset.noiseband;
-        setup.spectralUnit = "PSD";
-
-    case {'rsd','rmssd'} % Root mean square spectral density (RMS of PSD)
-        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:)) / fftset.noiseband;
+                                 / setup.WindowNoiseBandwidth;
+        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:)) ...
+                                 / setup.WindowNoiseBandwidth;
+        setup.SpectralUnit    = "PSD";
+    case {"rsd", "rmssd"}  % Root mean square spectral density (RMS of PSD)
+        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:)) / setup.WindowNoiseBandwidth;
         tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:)) ...
-                                 / fftset.noiseband;
-        setup.spectralUnit = "RMSSD";
-
-    otherwise            % Autospectrum
+                                 / setup.WindowNoiseBandwidth;
+        setup.SpectralUnit    = "RMSSD";
+    otherwise              % Autospectrum
         tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:));
-        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:));
+        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:));
+        setup.SpectralUnit    = "power";
 end
 
 % Spectral averaging and the limitation of the maximum frequency
-switch lower(fftset.averaging)
-    case {'energy', 'rms'}     % Energy averaging
+switch lower(setup.Averaging)
+    case {"energy", "rms"}                 % Energy averaging
         spectrum = rms(tSpectrum(1:maxf,:,:), 3);
-        setup.averaging = "energy";       
-        
-    case {'max', 'pk', 'peak'}  % Maximum peak hold averaging
+        setup.Averaging = "energy";       
+    case {"maximum", "max", "pk", "peak"}  % Maximum-hold averaging
         spectrum = max(tSpectrum(1:maxf,:,:), [], 3);
-        setup.averaging = "maximum";
-        
-    case 'median'               % Maximum peak hold averaging
+        setup.Averaging = "maximum";
+    case "median"                           % Median-hold averaging
         spectrum = median(tSpectrum(1:maxf,:,:), 3);
-        setup.averaging = "median";
-
-    case 'min'                  % Minimum peak hold averaging
+        setup.Averaging = "median";
+    case {"minimum", "min"}                 % Minimum-hold averaging
         spectrum = min(tSpectrum(1:maxf,:,:), [], 3);
-        setup.averaging = "minimum";
-
-    case 'none'                 % No averaging
+        setup.Averaging = "minimum";
+    case "none"                             % No averaging
         spectrum = squeeze(tSpectrum(1:maxf,:,:));
-        
-    case 'var'                  % Variance of averaging
+    case {"variance", "var"}                % Variance-hold averaging
         spectrum = var(tSpectrum(1:maxf,:,:), 0, 3);
-        setup.averaging = "variance";
-
-    otherwise                   % Linear averaging
+        setup.Averaging = "variance";
+    otherwise                               % Linear averaging
         spectrum = mean(tSpectrum(1:maxf,:,:), 3);
-        setup.averaging = "linear";
+        setup.Averaging = "linear";
 end
 % End of main fucntion
-end
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Subfunction windowfunc generates the window function
-%
-% Input
-%   - sym - symbol for the window function
-%   - n   - length of the window function (samples)
-%
-% Output
-%   - window - a discrete representation of the window function
-%  
-function [window, windowName] = windowfunc(sym, n)
-    % Generate the specified window function and its name
-    switch sym(1)
-        case 'b'    % Blackmann-Harris
-            window     = blackmanharris(n);
-            windowName = "Blackmann-Harris";
-        case 'f'    % flat-top
-            window = flattopwin(n);
-            windowName = "flat-top";
-        case 'h'    % Hann
-            window = hann(n);
-            windowName = "Hann";
-        case 'k'    % Kaiser-Bessel
-            if length(sym) == 1
-                % window with default beta = 0.5
-                window = kaiser(n, 0.5);
-                windowName = "Kaiser, b = 0.5";
-            else
-                % window with user specified beta
-                window = kaiser(n, str2double(sym(2:end)));
-                windowName = "Kaiser, b = " + string(sym(2:end));
-            end
-        case 'm'    % Hamming
-            window = hamming(n);
-            windowName = "Hamming";
-        otherwise   % uniform
-            window = rectwin(n);
-            windowName = "uniform";
-    end
 end
