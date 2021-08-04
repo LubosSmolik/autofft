@@ -2,7 +2,7 @@ function [spectrum, freq, setup] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 beta r1 (build 2. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 beta r2 (build 4. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -262,7 +262,7 @@ if isnumeric(setup.Window) && length(setup.Window) ~= setup.FFTLength
             num2str(setup.FFTLength, "%d") + " samples.");
 else
     % Generate the window function internally
-    switch lower(extractBefore(setup.Window, min(length(setup.Window), 4)))
+    switch lower(extractBefore(setup.Window, min(strlength(setup.Window)+1, 4)))
         case {"b", "bla"}  % Blackmann-Harris
             setup.Window = blackmanharris(setup.FFTLength);
             windowName   = "Blackmann-Harris";
