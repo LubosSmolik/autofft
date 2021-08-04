@@ -1,132 +1,140 @@
-function [spectrum, freq, setup] = autofft(xs, ts, userSetup)
+function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 beta r2 (build 4. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 beta r3 (build 4. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
-% [s, f] = autofft(xs, fs)
-% [s, f] = autofft(xs, ts)
-% [___]  = autofft(___, setup)
-% [___, setup] = autofft(___)
+% s = autofft(xs, fs)
+% s = autofft(xs, ts)
+% s = autofft(___, setup)
+% [s, f] = autofft(___)
+% [s, f, setup] = autofft(___)
+% [s, f, t, setup] = autofft(___)
 %
-% [s, f] = autofft(xs, fs) returns the DFT or STFT s of xs using sampling
-%   frequency fs (Hz). Also returns the frequencies f at which the DFT or
-%   STFT s is evaluated. xs can be either a vector or an array consisting
-%   of column vectors.
-% [s, f] = autofft(xs, ts) returns the DFT or STFT s of xs using a vector
-%   of time stamps ts. Also returns the frequencies f at which the DFT or 
-%   STFT s is evaluated. 
-% [___]  = autofft(___, setup) performs the DFT or STFT using name-value
-%   pair arguments specified in structure setup.
-% [s, f, setup] = autofft(___) also returns the setup of the FFT analyser.
+% s = autofft(xs, fs) returns the DFT or STFT s of xs using sampling
+%   frequency fs (Hz). xs can be either a vector or an array consisting of
+%   column vectors.
+%
+% s = autofft(xs, ts) returns the DFT or STFT s of xs using a vector of
+%   time stamps ts (s). Also returns the frequencies f at which the DFT or
+%   STFT s is evaluated.
+%
+% [___] = autofft(___, setup) performs the DFT or STFT name-value pair
+%   arguments specified in structure setup.
+%
+% [s, f] = autofft(___) returns the frequencies f at which the DFT or STFT
+%    s is evaluated.
+%
+% [s, f, setup] = autofft(___) returns the setup of the FFT analyser.
+%
+% [s, f, t, setup] = autofft(___) returns the times t at which the STFT is
+%     evaluated.
 %       
 % Construction of setup:
 %	setup = struct('param', 'value', ...);
 %
 %	List of parameters (all parameters and values are case insensitive):
-%     - 'FFTLength' - [ positive integer {length(xs) or size(xs, 2)} ]
-%       The length of each segment in samples, i.e. number of DFT points.
+%   - 'FFTLength' - [ positive integer {length(xs) or size(xs, 2)} ]
+%     The length of each segment in samples, i.e. number of DFT points.
 %
-%     - 'TimeResolution' - [ real positive scalar ]
-%       The duration of each segment in seconds.
+%   - 'TimeResolution' - [ real positive scalar ]
+%     The duration of each segment in seconds.
 %
-%     - 'FrequencyResolution' - [ real positive scalar ]
-%       The desired frequency resolution of the analyser in Hz.
+%   - 'FrequencyResolution' - [ real positive scalar ]
+%     The desired frequency resolution of the analyser in Hz.
 %
-%       Note: Default values of the three parameters above are set so that
-%             the input data are treated as one segment, i.e. no spectral 
-%             averaging is performed.
-%             If more than one of these three parameters is specified,
-%             'FFTLength', 'TimeResolution' and 'FrequencyResolution' have
-%             the highest, middle and lowest priority, respectively.
+%     Note: Default values of the three parameters above are set so that
+%       the input data are treated as one segment, i.e. no spectral averag-
+%       ing is performed. If more than one of these three parameters is
+%       specified, 'FFTLength', 'TimeResolution' and 'FrequencyResolution'
+%       have the highest, middle and lowest priority, respectively.
 %
-%     - 'HighPassFrequency' - [ {NaN} | real scalar ]
-%       Specifies the passband frequency of an elliptic highpass filter.
-%       The filter has a slope -20 dB/dec from the passband frequency.
-%       The exact filtering process depends on the parameter value:
-%       - NaN             - no highpass filtering
-%       - 0               - DC filtering with the use of detrend function
-%       - positive scalar - DC filtering and subsequent highpass filtering
-%       - negative scalar - highpass filtering without DC filtering
+%   - 'HighPassFrequency' - [ {NaN} | real scalar ]
+%     Specifies the passband frequency of an elliptic highpass filter.
+%     The filter has a slope -20 dB/dec from the passband frequency.
+%     The exact filtering process depends on the parameter value:
+%     - NaN             - no highpass filtering
+%     - 0               - DC filtering with the use of detrend function
+%     - positive scalar - DC filtering and subsequent highpass filtering
+%     - negative scalar - highpass filtering without DC filtering
 %
-%     - 'LowPassFrequency' - [ positive scalar in (0, fs/2) {fs/2} ]
-%       Specifies the maximum frequency in Hz over which autofft computes
-%       estimates. Recommended value is fs/2.56.
+%   - 'LowPassFrequency' - [ positive scalar in (0, fs/2) {fs/2} ]
+%     Specifies the maximum frequency in Hz over which autofft computes
+%     estimates. Recommended value is fs/2.56.
 %
-%     - 'Window' - [ character {'u'} | string | vector ]
-%       Specifies a window function which is than multiplied with each
-%       segment. The window function can be specified either as a vector
-%       or using a character or a string from the list below:
-%        - 'b' - Blackmann-Harris window
-%        - 'f' - flat-top window
-%        - 'h' - Hann window
-%        - 'm' - Hamming window
-%        - 'k' - Kaiser window with shape factor beta = 0.5
-%        - 'kA.A' - Kaiser window with shape factor beta = A.A
-%        - 'u' - uniform (rectangular) window                      {default}
-%       Alternatively, a string containing a name of the desired window
-%       can be used instead of the character.
+%   - 'Window' - [ character {'u'} | string | vector ]
+%     Specifies a window function which is than multiplied with each
+%     segment. The window function can be specified either as a vector
+%     or using a character or a string from the list below:
+%     - 'b' - Blackmann-Harris window
+%     - 'f' - flat-top window
+%     - 'h' - Hann window
+%     - 'm' - Hamming window
+%     - 'k' - Kaiser window with shape factor beta = 0.5
+%     - 'kA.A' - Kaiser window with shape factor beta = A.A
+%     - 'u' - uniform (rectangular) window                        {default}
+%     Alternatively, a string containing a name of the desired window can
+%     be used instead of the character.
 %
-%     - 'OverlapLength' - [ 50 % of 'FFTLength' | integer ] 
-%        Number of overlapped samples of two successive segments. If both
-%        'OverlapLength' and 'OverlapPercentage' are specified, only 
-%        'OverlapLength' is considered.
+%   - 'OverlapLength' - [ 50 % of 'FFTLength' | integer ] 
+%      Number of overlapped samples of two successive segments. If both
+%      'OverlapLength' and 'OverlapPercentage' are specified, only 
+%      'OverlapLength' is considered.
 %
-%     - 'OverlapPercentage' - [ real scalar in [0, 100] {50} ] 
-%        Overlap percentage of two successive segments. Use value 100 for
-%        the maximum possible overlap, i.e. 'FFTLength' - 1.
+%   - 'OverlapPercentage' - [ real scalar in [0, 100] {50} ] 
+%      Overlap percentage of two successive segments. Use value 100 for the
+%      maximum possible overlap, i.e. 'FFTLength' - 1.
 %
-%     - 'Averaging' - [ energy | {linear} | max | median | min | var | none]
-%       Specifies the spectral averaging mode from: 
-%       - 'energy', 'rms'     - energy (rms) averaging
-%       - 'linear', 'lin'     - linear averaging                  {default}
-%       - 'max', 'pk', 'peak' - maximum-hold aveargaing
-%       - 'median'            - returns median specified spectral unit
-%       - 'min'               - minimum-hold aveargaing
-%       - 'var'               - returns variance of specified spectral unit
-%       - 'none'              - returns the STFT with no spectral averaging
+%   - 'Averaging' - [ energy | {linear} | max | median | min | var | none]
+%     Specifies the spectral averaging mode from: 
+%     - 'energy', 'rms'     - energy (rms) averaging
+%     - 'linear', 'lin'     - linear averaging                    {default}
+%     - 'max', 'pk', 'peak' - maximum-hold aveargaing
+%     - 'median'            - returns median specified spectral unit
+%     - 'min'               - minimum-hold aveargaing
+%     - 'var'               - returns variance of specified spectral unit
+%     - 'none'              - returns the STFT with no spectral averaging
 %
-%     - 'jwWeigthing' - [ 1/jw2 | 1/jw | {1} | jw | jw2 ]
-%       Use this parameter to apply a frequency-domain post-weighting to
-%       the output spectra, for example to estimate displacement from
-%       acceleration. The parameter can be specified as follows:
-%          - '1/jw2' - double integration
-%          - '1/jw'  - single integration
-%          - '1'     - as input                                   {default}
-%          - 'jw'    - single differentiation
-%          - 'jw2'   - double differentiation
+%   - 'jwWeigthing' - [ 1/jw2 | 1/jw | {1} | jw | jw2 ]
+%     Use this parameter to apply a frequency-domain post-weighting to the
+%     output spectra e.g., to estimate displacement from acceleration. 
+%     The parameter can be specified as follows:
+%     - '1/jw2' - double integration
+%     - '1/jw'  - single integration
+%     - '1'     - as input                                        {default}
+%     - 'jw'    - single differentiation
+%     - 'jw2'   - double differentiation
 %
-%     - 'SpectralUnit' - [ {pow} | rms | pk | pp | psd | rsd ]
-%       Specifies absolute unit used to compute estimates from:
-%       - 'pow', 'power' - autospectrum (square of rms magnitudes)  {def.}
-%       - 'rms'          - linear spectrum with rms magnitude
-%       - 'pk', '0-pk'   - linear spectrum with 0-peak magnitude
-%       - 'pp', 'pk-pk'  - linear spectrum with peak-peak magnitude
-%       - 'psd'          - power spectral density
-%       - 'rsd','rmssd'  - root mean square of power spectral density 
+%   - 'SpectralUnit' - [ {pow} | rms | pk | pp | psd | rsd ]
+%     Specifies absolute unit used to compute estimates from:
+%     - 'pow', 'power' - autospectrum (square of rms magnitudes)  {default}
+%     - 'rms'          - linear spectrum with rms magnitude
+%     - 'pk', '0-pk'   - linear spectrum with 0-peak magnitude
+%     - 'pp', 'pk-pk'  - linear spectrum with peak-peak magnitude
+%     - 'psd'          - power spectral density
+%     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % What's new in v1.3?
 % - A brand new user manual is a part of this release.
+% - Syntax change: [s, f, t, setup] = autofft(___) returns the times t at
+%   which the STFT is evaluated.
 % - Syntax change: The setup of the FFT analyser is now specified using
-%                  setup structure; parameters used in the setup strructure
-%                  have the same names as parameters used in pspectrum and
-%                  stft functions. Output variable  setup can also be used
-%                  as input. Structure fftset used in the previous versions
-%                  can be also used to specify the analyser setup. However,
-%                  fftset is no longer documented.
-% - New functionality: Overlap length can be now specified in samples using 
-%                     'OverlapLength' parameter.
+%   setup structure; parameters used in the setup structure have the same
+%   names as parameters used in pspectrum and stft functions. Output
+%   variable setup can also be used as input. The structure fftset used in
+%   the previous versions can still be used to specify the analyser setup.
+%   However, fftset is no longer documented.
+% - New functionality: Overlap length can be now set in samples using the
+%   'OverlapLength' parameter.
 % - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
-%            decreased to a realistic value.
+%   decreased to a realistic value.
+% - Bug fix: All windows are now treated as column vectors. Row vectors
+%   could cause an error during the application of a window to data.
 
 %% nargin check
-if nargin < 2
-    error("Not enough input arguments.");
-elseif nargin > 3
-    error("Too many input arguments.");
-end
+narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1         % samples
@@ -249,17 +257,24 @@ for i = 1:setup.NumberOfAverages                % cycle through segments
 end
 
 % Set a window function
-if isnumeric(setup.Window) && length(setup.Window) ~= setup.FFTLength
+if isnumeric(setup.Window)
+    % Convert a window function to a column vector
+    setup.Window = setup.Window(:);
+    
     % Interpolate missing values in the window function if necessary
-    try   % Use the modified Akima interpolation (Matlab v2019b or newer)
-        setup.Window = makima(linspace(0, 1, length(setup.Window)), ...
-                              setup.Window, linspace(0,1,setup.FFTLength));
-    catch % Use the spline interpolation (Matlab v2019a or older)
-        setup.Window = spline(linspace(0, 1, length(setup.Window)), ...
-                              setup.Window, linspace(0,1,setup.FFTLength));
+    if  length(setup.Window) ~= setup.FFTLength
+        % Use the modified Akima interpolation (Matlab v2019b or newer)
+        try   
+            setup.Window = makima(linspace(0, 1, length(setup.Window)), ...
+                             setup.Window, linspace(0,1,setup.FFTLength)');
+        % Use the spline interpolation (Matlab v2019a or older)
+        catch 
+            setup.Window = spline(linspace(0, 1, length(setup.Window)), ...
+                             setup.Window, linspace(0,1,setup.FFTLength)');
+        end
+        warning("The window function has been interpolated to " + ...
+                num2str(setup.FFTLength, "%d") + " samples.");
     end
-	warning("The window function has been interpolated to " + ...
-            num2str(setup.FFTLength, "%d") + " samples.");
 else
     % Generate the window function internally
     switch lower(extractBefore(setup.Window, min(strlength(setup.Window)+1, 4)))
@@ -410,6 +425,27 @@ switch lower(setup.Averaging)
     otherwise                               % Linear averaging
         spectrum = mean(tSpectrum(1:maxf,:,:), 3);
         setup.Averaging = "linear";
+end
+
+%% Return the analyser setup and times at which the STFT is evaluated
+if nargout == 3
+    varargout{1} = setup;
+elseif nargout > 3
+    varargout{2} = setup;
+    
+    % Generate a vector of time stamps if needed
+    if size(ts(:), 1) == 1
+        ts = 1/fs:1/fs:setup.DataDuration;
+    end
+    
+    % Change the analyser setup for evaluation of a static value (at 0 Hz)
+    setup.Averaging    = "none";
+    setup.SpectralUnit = "peak";
+    setup.HighPassFrequency = NaN;
+    setup.LowPassFrequency  = 0.5 * setup.FrequencyResolution;
+    
+    % Compute the times at which the STFT is evaluated
+    varargout{1} = autofft(ts, ts, setup);
 end
 % End of main fucntion
 end
