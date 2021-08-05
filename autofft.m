@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 beta r3 (build 4. 8. 2021)       e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 (build 5. 8. 2021)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -31,6 +31,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %
 % [s, f, t, setup] = autofft(___) returns the times t at which the STFT is
 %     evaluated.
+%
 %       
 % Construction of setup:
 %	setup = struct('param', 'value', ...);
@@ -277,17 +278,22 @@ if isnumeric(setup.Window)
     end
 else
     % Generate the window function internally
-    switch lower(extractBefore(setup.Window, min(strlength(setup.Window)+1, 4)))
-        case {"b", "bla"}  % Blackmann-Harris
+    switch lower(extractBefore(setup.Window, 2))
+        case "b"    % Blackmann-Harris
             setup.Window = blackmanharris(setup.FFTLength);
             windowName   = "Blackmann-Harris";
-        case {"f", "fla"}  % flat-top
+        case "f"    % flat-top
             setup.Window = flattopwin(setup.FFTLength);
             windowName   = "flat-top";
-        case {"h", "han"}  % Hann
-            setup.Window = hann(setup.FFTLength);
-            windowName   = "Hann";
-        case {"k", "kai"}  % Kaiser-Bessel
+        case "h"    % Hann or Hamming
+            if strncmpi(setup.Window, "ham", 3) % Hamming
+                setup.Window = hamming(setup.FFTLength);
+                windowName   = "Hamming";
+            else    % Hann
+                setup.Window = hann(setup.FFTLength);
+                windowName   = "Hann";
+            end
+        case "k"    % Kaiser-Bessel
             % Try to calculate parameter beta
             beta = str2double(regexprep(setup.Window,"[a-zA-Z,=\s]",""));
 
@@ -298,7 +304,7 @@ else
                 setup.Window = kaiser(setup.FFTLength, beta);
                 windowName   = "Kaiser, b = " + string(beta);
             end
-        case {"m", "ham"}  % Hamming
+        case "m"    % Hamming
             setup.Window = hamming(setup.FFTLength);
             windowName   = "Hamming";
         otherwise   % uniform
@@ -338,11 +344,11 @@ end
 
 %% FFT
 % Preallocate an array for the DFT of individual segments
-tSpectrum = zeros(setup.FFTLength, size(xs, 2), setup.NumberOfAverages);
+tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 % Fast Fourier transformation of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
-        tSpectrum(:,i,j) = fft(setup.Window .* xs(ind(j,1):ind(j,2),i));
+        tSpectrum(:,j,i) = fft(setup.Window .* xs(ind(j,1):ind(j,2),i));
     end
 end
 
@@ -405,27 +411,30 @@ end
 
 % Spectral averaging and the limitation of the maximum frequency
 switch lower(setup.Averaging)
-    case {"energy", "rms"}                 % Energy averaging
-        spectrum = rms(tSpectrum(1:maxf,:,:), 3);
+    case {"energy", "rms"}                  % Energy averaging
+        spectrum = rms(tSpectrum(1:maxf,:,:), 2);
         setup.Averaging = "energy";       
-    case {"maximum", "max", "pk", "peak"}  % Maximum-hold averaging
-        spectrum = max(tSpectrum(1:maxf,:,:), [], 3);
+    case {"maximum", "max", "pk", "peak"}   % Maximum-hold averaging
+        spectrum = max(tSpectrum(1:maxf,:,:), [], 2);
         setup.Averaging = "maximum";
-    case "median"                           % Median-hold averaging
-        spectrum = median(tSpectrum(1:maxf,:,:), 3);
+    case {"median", "med"}                  % Median-hold averaging
+        spectrum = median(tSpectrum(1:maxf,:,:), 2);
         setup.Averaging = "median";
     case {"minimum", "min"}                 % Minimum-hold averaging
-        spectrum = min(tSpectrum(1:maxf,:,:), [], 3);
+        spectrum = min(tSpectrum(1:maxf,:,:), [], 2);
         setup.Averaging = "minimum";
     case "none"                             % No averaging
-        spectrum = squeeze(tSpectrum(1:maxf,:,:));
+        spectrum = tSpectrum(1:maxf,:,:);
     case {"variance", "var"}                % Variance-hold averaging
-        spectrum = var(tSpectrum(1:maxf,:,:), 0, 3);
+        spectrum = var(tSpectrum(1:maxf,:,:), 0, 2);
         setup.Averaging = "variance";
     otherwise                               % Linear averaging
-        spectrum = mean(tSpectrum(1:maxf,:,:), 3);
+        spectrum = mean(tSpectrum(1:maxf,:,:), 2);
         setup.Averaging = "linear";
 end
+
+% Squeeze the resulting spectrum
+spectrum = squeeze(spectrum);
 
 %% Return the analyser setup and times at which the STFT is evaluated
 if nargout == 3
