@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 (build 5. 8. 2021)        e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 (build 31. 8. 2021)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -179,6 +179,9 @@ if nargin == 3
             userSetup.(setupFields{newFields(ind)}) = userSetup.(userFields{i});
         end
     end
+    
+    % Refresh user-specified field names (these might changed above)
+    userFields = fieldnames(userSetup);
     
     % Merge the user-specified setup with the default analyser setup
     for i = 4:length(setupFields)
