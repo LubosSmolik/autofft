@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 (build 31. 8. 2021)        e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0 (build 14. 11. 2021)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -73,7 +73,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'f' - flat-top window
 %     - 'h' - Hann window
 %     - 'm' - Hamming window
-%     - 'k' - Kaiser window with shape factor beta = 0.5
+%     - 'k' - Kaiser window with shape factor beta = 1.6
 %     - 'kA.A' - Kaiser window with shape factor beta = A.A
 %     - 'u' - uniform (rectangular) window                        {default}
 %     Alternatively, a string containing a name of the desired window can
@@ -129,6 +129,8 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %   However, fftset is no longer documented.
 % - New functionality: Overlap length can be now set in samples using the
 %   'OverlapLength' parameter.
+% - Functionality change: The default shape factor of the Kaiser window is
+%   now 1.6 instead of 0.5.
 % - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
 %   decreased to a realistic value.
 % - Bug fix: All windows are now treated as column vectors. Row vectors
@@ -296,12 +298,12 @@ else
                 setup.Window = hann(setup.FFTLength);
                 windowName   = "Hann";
             end
-        case "k"    % Kaiser-Bessel
+        case "k"    % Kaiser
             % Try to calculate parameter beta
             beta = str2double(regexprep(setup.Window,"[a-zA-Z,=\s]",""));
 
-            if isnan(beta)
-                setup.Window = kaiser(setup.FFTLength, 0.5);
+            if isnan(beta) % Use the default Kaiser window (beta = 1.6)
+                setup.Window = kaiser(setup.FFTLength, 1.6);
                 windowName   = "Kaiser, b = 0.5";
             else
                 setup.Window = kaiser(setup.FFTLength, beta);
