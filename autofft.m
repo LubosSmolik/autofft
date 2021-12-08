@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0 (build 14. 11. 2021)        e-mail: carlist{at}ntis.zcu.cz
+% v1.3.0a (build 8. 12. 2021)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -118,6 +118,8 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % What's new in v1.3?
+% - Bug fix v1.3.0a: If 'jwWeigthing' is set to derivation or integration,
+%   times t are computed properly.
 % - A brand new user manual is a part of this release.
 % - Syntax change: [s, f, t, setup] = autofft(___) returns the times t at
 %   which the STFT is evaluated.
@@ -454,6 +456,7 @@ elseif nargout > 3
     
     % Change the analyser setup for evaluation of a static value (at 0 Hz)
     setup.Averaging    = "none";
+    setup.jwWeigthing  = "none";
     setup.SpectralUnit = "peak";
     setup.HighPassFrequency = NaN;
     setup.LowPassFrequency  = 0.5 * setup.FrequencyResolution;
