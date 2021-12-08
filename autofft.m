@@ -118,7 +118,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % What's new in v1.3?
-% - Bug fix v1.3.0a: If 'jwWeigthing' is set to derivation or integration,
+% - Bug fix v1.3.1: If 'jwWeigthing' is set to derivation or integration,
 %   times t are computed properly.
 % - A brand new user manual is a part of this release.
 % - Syntax change: [s, f, t, setup] = autofft(___) returns the times t at
