@@ -1,8 +1,8 @@
 function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
-%  Copyright (c) 2017-2021         Lubos Smolik, University of West Bohemia
-% v1.3.0a (build 8. 12. 2021)        e-mail: carlist{at}ntis.zcu.cz
+%  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
+% v1.4.0 - prerelease (build 9. 1. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -51,6 +51,12 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %       ing is performed. If more than one of these three parameters is
 %       specified, 'FFTLength', 'TimeResolution' and 'FrequencyResolution'
 %       have the highest, middle and lowest priority, respectively.
+%
+%   - 'Mode' - [ {'onesided'} | 'twosided' ]
+%     Selects an algorithm for theconstruction of the freqeuncy spectrum:
+%     - 'onesided' - computes one-sided spectrum estimates over [0, maxF]
+%     - 'twosided' - computes centered, two-sided spectrum estimates over
+%       [-maxF, maxF], where maxF is given by 'LowPassFrequency'
 %
 %   - 'HighPassFrequency' - [ {NaN} | real scalar ]
 %     Specifies the passband frequency of an elliptic highpass filter.
@@ -117,28 +123,11 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-% What's new in v1.3?
-% - Bug fix v1.3.1: If 'jwWeigthing' is set to derivation or integration,
-%   times t are computed properly.
-% - A brand new user manual is a part of this release.
-% - Syntax change: [s, f, t, setup] = autofft(___) returns the times t at
-%   which the STFT is evaluated.
-% - Syntax change: The setup of the FFT analyser is now specified using
-%   setup structure; parameters used in the setup structure have the same
-%   names as parameters used in pspectrum and stft functions. Output
-%   variable setup can also be used as input. The structure fftset used in
-%   the previous versions can still be used to specify the analyser setup.
-%   However, fftset is no longer documented.
-% - New functionality: Overlap length can be now set in samples using the
-%   'OverlapLength' parameter.
-% - Functionality change: The default shape factor of the Kaiser window is
-%   now 1.6 instead of 0.5.
-% - Bug fix: 'OverlapPercentage' 100% or higher is now automatically
-%   decreased to a realistic value.
-% - Bug fix: All windows are now treated as column vectors. Row vectors
-%   could cause an error during the application of a window to data.
+% What's new in v1.4?
+% - ... to do
 
 %% nargin check
+disp("autofft v1.4 - testing build only")
 narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
@@ -158,6 +147,7 @@ setup = struct("SamplingFrequency",    fs, ...
                "FFTLength",            NaN, ...
                "TimeResolution",       NaN, ...
                "FrequencyResolution",  NaN, ...
+               "Mode",                 "onesided", ...
                "HighPassFrequency",    NaN, ...
                "LowPassFrequency",     fs / 2, ...
                "Window",               "uniform", ...
@@ -175,7 +165,7 @@ if nargin == 3
     % Convert fftset to setup (due to compatibility with v1.1 and v1.2)
     userFields = fieldnames(userSetup);
     oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "unit" "jw"];
-    newFields = [4 5 6 7 8 12 15 16];
+    newFields = [4 5 6 8 9 13 16 17];
     
     for i = 1:length(userFields)
         ind = strcmpi(userFields{i}, oldFields);
@@ -234,10 +224,36 @@ end
 setup.FrequencyResolution = fs / setup.FFTLength;
 setup.TimeResolution      = setup.FFTLength / fs;
 
+% Check if the low pass frequency is not higher than the Nyquist frequency
+if setup.LowPassFrequency > fs
+    setup.LowPassFrequency = fs / 2;
+    warning("Maximum frequency has been changed to " + fs + " Hz.");
+end
 
 % Generate frequency vector
-freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
-maxf = size(freq, 1);
+switch lower(setup.Mode)
+    case "twosided" % Two-sided spectrum                
+        freq = [-flip(0:setup.FrequencyResolution:setup.LowPassFrequency) ...
+                setup.FrequencyResolution:setup.FrequencyResolution:setup.LowPassFrequency]';
+        setup.Mode = "twosided";
+
+        % Vector of indices for manipulation with the DFT
+        sc  = 1;                            % Scaling constant
+        st  = (size(freq, 1) - 1) / 2 + 1;  % Index of the static component
+        ind = [setup.FFTLength - st + 2:setup.FFTLength, 1:st]';
+        %st   = 
+    otherwise       % One-sided spectrum 
+        freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
+        setup.Mode = "onesided";
+
+        % Vector of indices for manipulation with the DFT
+        sc  = 2;                            % Scaling constant
+        st  = 1;                            % Index of the static component
+        ind = (1:size(freq, 1))';
+end
+
+%freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)'
+%maxf = size(freq, 1);
 
 % Calculate number of overlaping samples
 if isnan(setup.OverlapLength)
@@ -255,12 +271,12 @@ setup.OverlapPercentage = 100 * setup.OverlapLength / setup.FFTLength;
 % Calculate the number of segments and segment indices
 setup.NumberOfAverages = floor((setup.DataLength - setup.OverlapLength) / ...
                                (setup.FFTLength - setup.OverlapLength));
-ind = zeros(setup.NumberOfAverages, 2);         % matrix of indices
+seg = zeros(setup.NumberOfAverages, 2);         % matrix of segment indices
 ni  = 1;                                        % pointer
 for i = 1:setup.NumberOfAverages                % cycle through segments
-    ind(i, 1) = ni; 
+    seg(i, 1) = ni; 
     ni = ni + setup.FFTLength - 1;
-    ind(i, 2) = ni;
+    seg(i, 2) = ni;
     ni = ni - setup.OverlapLength + 1;
 end
 
@@ -321,7 +337,7 @@ else
 end
 
 % Normalise the window function for correct magnitude estimation
-setup.Window = setup.Window / mean(setup.Window);
+setup.Window = setup.Window ./ mean(setup.Window);
 
 % Calculate the noise power bandwidth of the window function in Hz
 setup.WindowNoiseBandwidth = enbw(setup.Window, fs);
@@ -352,10 +368,11 @@ end
 %% FFT
 % Preallocate an array for the DFT of individual segments
 tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
-% Fast Fourier transformation of the time-weighted segments
+
+% Fast Fourier transforma of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
-        tSpectrum(:,j,i) = fft(setup.Window .* xs(ind(j,1):ind(j,2),i));
+        tSpectrum(:,j,i) = fft(setup.Window .* xs(seg(j,1):seg(j,2),i));
     end
 end
 
@@ -363,81 +380,80 @@ if exist("windowName", "var")
     setup.Window = windowName;
 end
 
-% Scaling and application of the jw weigthing
+% Application of the jw weigthing and evaluation of halfspectra
 switch lower(setup.jwWeigthing)
     case {"1/jw2", "double integration"}
-        tSpectrum(1:maxf,:,:) = (- 1 ./ (4 * pi^2 * freq.^2)) .* ...
-                                (tSpectrum(1:maxf,:,:) / setup.FFTLength);
-        setup.jwWeigthing = "double integration";
+        tSpectrum(ind,:,:) = abs((-1 ./ (4 * pi^2 * freq.^2)) .* ...
+                                 tSpectrum(ind,:,:));
+        setup.jwWeigthing  = "double integration";
     case {"1/jw", "single integration"}
-        tSpectrum(1:maxf,:,:) = (1 ./ (2i * pi * freq)) .* ...
-                                (tSpectrum(1:maxf,:,:) / setup.FFTLength);
-        setup.jwWeigthing = "single integration";
+        tSpectrum(ind,:,:) = abs((1 ./ (2i * pi * freq)) .* ...
+                                 tSpectrum(ind,:,:));
+        setup.jwWeigthing  = "single integration";
     case {"jw", "single differentiation"}
-        tSpectrum(1:maxf,:,:) = 2i * pi * freq .* ...
-                                tSpectrum(1:maxf,:,:) / setup.FFTLength;
-        setup.jwWeigthing = "single differentiation"; 
+        tSpectrum(ind,:,:) = abs(2i * pi * freq .* tSpectrum(ind,:,:));
+        setup.jwWeigthing  = "single differentiation";
     case {"jw2", "double differentiation"}
-        tSpectrum(1:maxf,:,:) = - 4 * pi^2 * freq.^2 .* ...
-                                tSpectrum(1:maxf,:,:) / setup.FFTLength;
-        setup.jwWeigthing = "double differentiation"; 
+        tSpectrum(ind,:,:) = abs(-4 * pi^2 * freq.^2 .* tSpectrum(ind,:,:));
+        setup.jwWeigthing  = "double differentiation"; 
     otherwise
-        tSpectrum(1:maxf,:,:) = tSpectrum(1:maxf,:,:) / setup.FFTLength;
-end
-
-% Evaluation of spectral unit
-switch lower(setup.SpectralUnit)
-    case "rms"                          % RMS magnitude
-        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
-        tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:));
-        setup.SpectralUnit = "RMS";
-    case {"pk", "0-pk", "peak"}         % 0-peak magnitude
-        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
-        tSpectrum(2:maxf,:,:) = 2 * abs(tSpectrum(2:maxf,:,:));
-        setup.SpectralUnit    = "0-pk";
-    case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
-        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:));
-        tSpectrum(2:maxf,:,:) = 4 * abs(tSpectrum(2:maxf,:,:));        
-        setup.SpectralUnit    = "pk-pk";
-    case {"asd", "psd"}                 % Power spectral density
-        tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:)) ...
-                                 / setup.WindowNoiseBandwidth;
-        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:)) ...
-                                 / setup.WindowNoiseBandwidth;
-        setup.SpectralUnit    = "PSD";
-    case {"rsd", "rmssd"}               % Root mean square spectral density
-        tSpectrum(1,:,:)      = abs(tSpectrum(1,:,:)) / setup.WindowNoiseBandwidth;
-        tSpectrum(2:maxf,:,:) = (2/sqrt(2)) * abs(tSpectrum(2:maxf,:,:)) ...
-                                 / setup.WindowNoiseBandwidth;
-        setup.SpectralUnit    = "RMSSD";
-    otherwise                           % Autospectrum / power spectrum
-        tSpectrum(1,:,:)      = tSpectrum(1,:,:) .* conj(tSpectrum(1,:,:));
-        tSpectrum(2:maxf,:,:) = 2 * tSpectrum(2:maxf,:,:) .* conj(tSpectrum(2:maxf,:,:));
-        setup.SpectralUnit    = "power";
+        tSpectrum(ind,:,:) = abs(tSpectrum(ind,:,:));
 end
 
 % Spectral averaging and the limitation of the maximum frequency
 switch lower(setup.Averaging)
     case {"energy", "rms"}                  % Energy averaging
-        spectrum = rms(tSpectrum(1:maxf,:,:), 2);
+        spectrum = rms(tSpectrum(ind,:,:), 2);
         setup.Averaging = "energy";       
     case {"maximum", "max", "pk", "peak"}   % Maximum-hold averaging
-        spectrum = max(tSpectrum(1:maxf,:,:), [], 2);
+        spectrum = max(tSpectrum(ind,:,:), [], 2);
         setup.Averaging = "maximum";
     case {"median", "med"}                  % Median-hold averaging
-        spectrum = median(tSpectrum(1:maxf,:,:), 2);
+        spectrum = median(tSpectrum(ind,:,:), 2);
         setup.Averaging = "median";
     case {"minimum", "min"}                 % Minimum-hold averaging
-        spectrum = min(tSpectrum(1:maxf,:,:), [], 2);
+        spectrum = min(tSpectrum(ind,:,:), [], 2);
         setup.Averaging = "minimum";
     case "none"                             % No averaging
-        spectrum = tSpectrum(1:maxf,:,:);
+        spectrum = tSpectrum(ind,:,:);
     case {"variance", "var"}                % Variance-hold averaging
-        spectrum = var(tSpectrum(1:maxf,:,:), 0, 2);
+        spectrum = var(tSpectrum(ind,:,:), 0, 2);
         setup.Averaging = "variance";
     otherwise                               % Linear averaging
-        spectrum = mean(tSpectrum(1:maxf,:,:), 2);
+        spectrum = mean(tSpectrum(ind,:,:), 2);
         setup.Averaging = "linear";
+end
+
+% Evaluation of spectral unit
+switch lower(setup.SpectralUnit)
+    case "rms"                          % RMS magnitude
+        spectrum(st,:)        = spectrum(st,:) / setup.FFTLength;
+        spectrum(1:end~=st,:) = (sc/sqrt(2)) * spectrum(1:end~=st,:) / setup.FFTLength;
+        setup.SpectralUnit    = "RMS";
+    case {"pk", "0-pk", "peak"}         % 0-peak magnitude
+        spectrum(st,:)      = spectrum(st,:) / setup.FFTLength;
+        spectrum(1:end~=st,:)  = sc * spectrum(1:end~=st,:) / setup.FFTLength;
+        setup.SpectralUnit = "0-pk";
+    case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
+        spectrum(st,:)      = spectrum(st,:) / setup.FFTLength;
+        spectrum(1:end~=st,:) = 2 * sc * spectrum(1:end~=st,:) / setup.FFTLength;
+        setup.SpectralUnit = "pk-pk";
+    case {"asd", "psd"}                 % Power spectral density
+        spectrum(st,:)      = (spectrum(st,:) / setup.FFTLength).^2 / ...
+                             setup.WindowNoiseBandwidth;
+        spectrum(1:end~=st,:)  = sc * (spectrum(1:end~=st,:) / setup.FFTLength).^2 / ...
+                             setup.WindowNoiseBandwidth;
+        setup.SpectralUnit = "PSD";
+    case {"rsd", "rmssd"}               % Root mean square spectral density
+        spectrum(st,:)        = spectrum(st,:) / ...
+                            (setup.WindowNoiseBandwidth * setup.FFTLength);
+        spectrum(1:end~=st,:) = (sc/sqrt(2)) * spectrum(1:end~=st,:) / ...
+                            (setup.WindowNoiseBandwidth * setup.FFTLength);
+        setup.SpectralUnit = "RMSSD";
+    otherwise                           % Autospectrum / power spectrum
+        spectrum(st,:)        = (spectrum(st,:) / setup.FFTLength).^2;
+        spectrum(1:end~=st,:) = sc * (spectrum(1:end~=st,:) / setup.FFTLength).^2;
+        setup.SpectralUnit = "power";
 end
 
 % Squeeze the resulting spectrum
