@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.4.0 - prerelease (build 9. 1. 2022)       e-mail: carlist{at}ntis.zcu.cz
+% v1.4.0 (build 2. 3. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -53,7 +53,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %       have the highest, middle and lowest priority, respectively.
 %
 %   - 'Mode' - [ {'onesided'} | 'twosided' ]
-%     Selects an algorithm for theconstruction of the freqeuncy spectrum:
+%     Selects an algorithm to construct of the freqeuncy spectrum:
 %     - 'onesided' - computes one-sided spectrum estimates over [0, maxF]
 %     - 'twosided' - computes centered, two-sided spectrum estimates over
 %       [-maxF, maxF], where maxF is given by 'LowPassFrequency'
@@ -124,10 +124,17 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % What's new in v1.4?
-% - ... to do
+%  New functionality: Analyser mode can now be changed using the 'Mode'
+%    parameter. Currently available modes include one-sided and two-sided
+%    spectra.
+%  Functionality change: Spectral averaging is now performed employing
+%    unscaled linear spectra. This implementation accelerates the spectral
+%    averaging up to 30 %, decreasing CPU time noticeably.
+%  Documentation: Section Analyser resolution has been reworked.
+%  Bugfix: 'LowPassFrequency' is now automatically decreased if higher than
+%    the Nyquist frequency.
 
 %% nargin check
-disp("autofft v1.4 - testing build only")
 narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
@@ -215,7 +222,7 @@ elseif ~isnan(setup.FrequencyResolution)
     else
         setup.FFTLength = round(fs / setup.FrequencyResolution);
     end
-% Do if all FFT length, time res. and freq. resolution are not defined 
+% Do if none of FFT length, time res. and frequency res. is defined 
 else
     setup.FFTLength = setup.DataLength;
 end
@@ -241,7 +248,6 @@ switch lower(setup.Mode)
         sc  = 1;                            % Scaling constant
         st  = (size(freq, 1) - 1) / 2 + 1;  % Index of the static component
         ind = [setup.FFTLength - st + 2:setup.FFTLength, 1:st]';
-        %st   = 
     otherwise       % One-sided spectrum 
         freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
         setup.Mode = "onesided";
@@ -251,9 +257,6 @@ switch lower(setup.Mode)
         st  = 1;                            % Index of the static component
         ind = (1:size(freq, 1))';
 end
-
-%freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)'
-%maxf = size(freq, 1);
 
 % Calculate number of overlaping samples
 if isnan(setup.OverlapLength)
