@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.4.0 (build 2. 3. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.4.1 (build 16. 3. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -124,6 +124,8 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 % What's new in v1.4?
+%  Bugfix v1.4.1 - Sampling frequency is now estimated more accurately if
+%    the time stamps have poor resolution or high uncertainty.
 %  New functionality: Analyser mode can now be changed using the 'Mode'
 %    parameter. Currently available modes include one-sided and two-sided
 %    spectra.
@@ -144,7 +146,7 @@ end
 if size(ts(:), 1) == 1      % sampling frequency
     fs = ts;                    
 else
-    fs = 1 / (ts(2) - ts(1)); 
+    fs = (length(ts) - 1) / (ts(end) - ts(1)); 
 end
 
 %% Generate a structure array containing a default analyser setup
