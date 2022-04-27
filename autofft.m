@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.4.1 (build 16. 3. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.5.0 (build 27. 4. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -123,21 +123,23 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-% What's new in v1.4?
-%  Bugfix v1.4.1 - Sampling frequency is now estimated more accurately if
-%    the time stamps have poor resolution or high uncertainty.
-%  New functionality: Analyser mode can now be changed using the 'Mode'
-%    parameter. Currently available modes include one-sided and two-sided
-%    spectra.
-%  Functionality change: Spectral averaging is now performed employing
-%    unscaled linear spectra. This implementation accelerates the spectral
-%    averaging up to 30 %, decreasing CPU time noticeably.
-%  Documentation: Section Analyser resolution has been reworked.
-%  Bugfix: 'LowPassFrequency' is now automatically decreased if higher than
-%    the Nyquist frequency.
+%   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
+%     Specify the reference value to calculate the decibel scale.
+%     - NaN - The output spectrum is not expressed in dB.
+%     - 0   - The output spectrum is expressed in dB. The reference value
+%             is selected automatically so that 0 dB is the maximum.
+%     - positive scalar - The output spectrum is expressed in dB with the
+%             reference value specified by the user. 
+%
+% What's new in v1.5?
+%  New functionality: The output spectra can be returned in decibel scale
+%    with the use of 'dbReference' property.
+%  New function: A freqWeight function, which applies frequency weighting
+%    filters to the power spectrum, is now included in the release.
 
 %% nargin check
 narginchk(2, 3);
+warning("This is a beta version (v1.5.0 - beta)!")
 
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1         % samples
@@ -165,15 +167,16 @@ setup = struct("SamplingFrequency",    fs, ...
                "OverlapPercentage",    50, ...
                "Averaging",            "linear", ...
                "NumberOfAverages",     NaN, ...
+               "jwWeigthing",          "none", ...
                "SpectralUnit",         "power", ...
-               "jwWeigthing",          "none");
+               "dbReference",          NaN);
 setupFields = fieldnames(setup);
 
 % Set user-specified parameters
 if nargin == 3
     % Convert fftset to setup (due to compatibility with v1.1 and v1.2)
     userFields = fieldnames(userSetup);
-    oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "unit" "jw"];
+    oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "jw" "unit"];
     newFields = [4 5 6 8 9 13 16 17];
     
     for i = 1:length(userFields)
@@ -463,6 +466,27 @@ end
 
 % Squeeze the resulting spectrum
 spectrum = squeeze(spectrum);
+
+% Transform resulting spectra to decibels
+if ~isnan(setup.dbReference)
+    % Set the reference level automatically in not specified by the user
+    if setup.dbReference == 0
+        if setup.SpectralUnit == "PSD" || setup.SpectralUnit == "power"
+            setup.dbReference = sqrt(max(spectrum(:)));
+        else
+            setup.dbReference = max(spectrum(:));
+        end
+    end
+
+    % Calculate decibels
+    if setup.SpectralUnit == "PSD" || setup.SpectralUnit == "power"
+        % Calculate decibels for powerspectra, i.e. 20 log (s_i / s_ref)
+        spectrum = 10 * log10(spectrum / (setup.dbReference^2));
+    else
+        % Calculate decibels for linear spectra, i.e. 10 log (s_i / s_ref)
+        spectrum = 10 * log10(spectrum / setup.dbReference);
+    end  
+end
 
 %% Return the analyser setup and times at which the STFT is evaluated
 if nargout == 3
