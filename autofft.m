@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.0 (build 27. 4. 2022)       e-mail: carlist{at}ntis.zcu.cz
+% v1.5.0 (build 6. 6. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -136,17 +136,19 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %    with the use of 'dbReference' property.
 %  New function: A freqWeight function, which applies frequency weighting
 %    filters to the power spectrum, is now included in the release.
+%  Optimization: Times at which the STFT is evaluated are computed more
+%    efficiently.
 
 %% nargin check
 narginchk(2, 3);
-warning("This is a beta version (v1.5.0 - beta)!")
 
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1         % samples
     xs = xs(:);                     
 end
 if size(ts(:), 1) == 1      % sampling frequency
-    fs = ts;                    
+    fs = ts;
+    ts = transpose(0.5/fs:1/fs:(size(xs, 1) - 0.5)/fs);
 else
     fs = (length(ts) - 1) / (ts(end) - ts(1)); 
 end
@@ -279,7 +281,7 @@ setup.OverlapPercentage = 100 * setup.OverlapLength / setup.FFTLength;
 % Calculate the number of segments and segment indices
 setup.NumberOfAverages = floor((setup.DataLength - setup.OverlapLength) / ...
                                (setup.FFTLength - setup.OverlapLength));
-seg = zeros(setup.NumberOfAverages, 2);         % matrix of segment indices
+seg = zeros(setup.NumberOfAverages, 3);         % matrix of segment indices
 ni  = 1;                                        % pointer
 for i = 1:setup.NumberOfAverages                % cycle through segments
     seg(i, 1) = ni; 
@@ -377,10 +379,16 @@ end
 % Preallocate an array for the DFT of individual segments
 tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 
-% Fast Fourier transforma of the time-weighted segments
+% Fast Fourier transform of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
+        % FFT of the individual segment
         tSpectrum(:,j,i) = fft(setup.Window .* xs(seg(j,1):seg(j,2),i));
+
+        % Time at which the FFT is evaluated
+        if nargout > 3
+            seg(j, 3) = mean(setup.Window .* ts(seg(j, 1):seg(j,2)));
+        end
     end
 end
 
@@ -488,26 +496,12 @@ if ~isnan(setup.dbReference)
     end  
 end
 
-%% Return the analyser setup and times at which the STFT is evaluated
+%% Return the analyser setup
 if nargout == 3
     varargout{1} = setup;
 elseif nargout > 3
+    varargout{1} = seg(:, 3);
     varargout{2} = setup;
-    
-    % Generate a vector of time stamps if needed
-    if size(ts(:), 1) == 1
-        ts = 1/fs:1/fs:setup.DataDuration;
-    end
-    
-    % Change the analyser setup for evaluation of a static value (at 0 Hz)
-    setup.Averaging    = "none";
-    setup.jwWeigthing  = "none";
-    setup.SpectralUnit = "peak";
-    setup.HighPassFrequency = NaN;
-    setup.LowPassFrequency  = 0.5 * setup.FrequencyResolution;
-    
-    % Compute the times at which the STFT is evaluated
-    varargout{1} = autofft(ts, ts, setup);
 end
 % End of main fucntion
 end
