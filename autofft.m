@@ -132,12 +132,13 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %             reference value specified by the user. 
 %
 % What's new in v1.5?
-%  New functionality: The output spectra can be returned in decibel scale
-%    with the use of 'dbReference' property.
-%  New function: A freqWeight function, which applies frequency weighting
-%    filters to the power spectrum, is now included in the release.
-%  Optimization: Times at which the STFT is evaluated are computed more
-%    efficiently.
+% New functionality: The output spectra can be returned in decibel scale
+%   using the 'dbReference' parameter.
+% New function: A freqWeight function, which applies frequency weighting
+%   filters to the power spectrum, is now included in the release.
+% Documentation: New example added.
+% Code optimisation: Times at which the STFT is evaluated are computed more
+%   efficiently.
 
 %% nargin check
 narginchk(2, 3);
