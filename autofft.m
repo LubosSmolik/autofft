@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.4.1 (build 16. 3. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.5.0 (build 19. 6. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -123,28 +123,38 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-% What's new in v1.4?
-%  Bugfix v1.4.1 - Sampling frequency is now estimated more accurately if
-%    the time stamps have poor resolution or high uncertainty.
-%  New functionality: Analyser mode can now be changed using the 'Mode'
-%    parameter. Currently available modes include one-sided and two-sided
-%    spectra.
-%  Functionality change: Spectral averaging is now performed employing
-%    unscaled linear spectra. This implementation accelerates the spectral
-%    averaging up to 30 %, decreasing CPU time noticeably.
-%  Documentation: Section Analyser resolution has been reworked.
-%  Bugfix: 'LowPassFrequency' is now automatically decreased if higher than
-%    the Nyquist frequency.
+%   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
+%     Specifies the reference value to calculate the decibel scale.
+%     - NaN - The output spectrum is not expressed in dB.
+%     - 0   - The output spectrum is expressed in dB. The reference value
+%             is selected automatically so that 0 dB is the maximum.
+%     - positive scalar - The output spectrum is expressed in dB with the
+%             reference value specified by the user. 
+%
+% What's new in v1.5?
+% New functionality: The output spectra can be returned in decibel scale
+%   using the 'dbReference' parameter.
+% New function: A freqWeight function, which applies frequency weighting
+%   filters to the power spectrum, is now included in the release.
+% Documentation: New example added.
+% Code optimisation: Times at which the STFT is evaluated are computed more
+%   efficiently.
 
 %% nargin check
 narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
-if size(xs, 1) == 1         % samples
-    xs = xs(:);                     
+if size(xs, 1) == 1     % samples
+    xs = xs(:);
 end
-if size(ts(:), 1) == 1      % sampling frequency
-    fs = ts;                    
+
+if size(ts, 1) == 1     % sampling frequency or times
+    ts = ts(:);
+end
+
+if size(ts, 1) == 1     % sampling frequency or times
+    fs = ts;
+    ts = transpose(0.5/fs:1/fs:(size(xs, 1) - 0.5)/fs);
 else
     fs = (length(ts) - 1) / (ts(end) - ts(1)); 
 end
@@ -165,27 +175,28 @@ setup = struct("SamplingFrequency",    fs, ...
                "OverlapPercentage",    50, ...
                "Averaging",            "linear", ...
                "NumberOfAverages",     NaN, ...
+               "jwWeigthing",          "none", ...
                "SpectralUnit",         "power", ...
-               "jwWeigthing",          "none");
+               "dbReference",          NaN);
 setupFields = fieldnames(setup);
 
 % Set user-specified parameters
 if nargin == 3
     % Convert fftset to setup (due to compatibility with v1.1 and v1.2)
     userFields = fieldnames(userSetup);
-    oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "unit" "jw"];
+    oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "jw" "unit"];
     newFields = [4 5 6 8 9 13 16 17];
-    
+
     for i = 1:length(userFields)
         ind = strcmpi(userFields{i}, oldFields);
         if any(ind)
             userSetup.(setupFields{newFields(ind)}) = userSetup.(userFields{i});
         end
     end
-    
+
     % Refresh user-specified field names (these might changed above)
     userFields = fieldnames(userSetup);
-    
+
     % Merge the user-specified setup with the default analyser setup
     for i = 4:length(setupFields)
         ind = strcmpi(setupFields{i}, userFields);
@@ -204,7 +215,7 @@ if ~isnan(setup.FFTLength)
                 "FFT length has been changed to " + ...
                 num2str(setup.FFTLength, '%d') + " samples.");
     end
-% Check if there is user-defined time resolution  
+% Check if there is user-defined time resolution
 elseif ~isnan(setup.TimeResolution)
     if round(setup.TimeResolution * fs) > setup.DataLength
         setup.FFTLength = setup.DataLength;
@@ -241,7 +252,7 @@ end
 
 % Generate frequency vector
 switch lower(setup.Mode)
-    case "twosided" % Two-sided spectrum                
+    case "twosided" % Two-sided spectrum
         freq = [-flip(0:setup.FrequencyResolution:setup.LowPassFrequency) ...
                 setup.FrequencyResolution:setup.FrequencyResolution:setup.LowPassFrequency]';
         setup.Mode = "twosided";
@@ -276,7 +287,7 @@ setup.OverlapPercentage = 100 * setup.OverlapLength / setup.FFTLength;
 % Calculate the number of segments and segment indices
 setup.NumberOfAverages = floor((setup.DataLength - setup.OverlapLength) / ...
                                (setup.FFTLength - setup.OverlapLength));
-seg = zeros(setup.NumberOfAverages, 2);         % matrix of segment indices
+seg = zeros(setup.NumberOfAverages, 3);         % matrix of segment indices
 ni  = 1;                                        % pointer
 for i = 1:setup.NumberOfAverages                % cycle through segments
     seg(i, 1) = ni; 
@@ -374,10 +385,16 @@ end
 % Preallocate an array for the DFT of individual segments
 tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 
-% Fast Fourier transforma of the time-weighted segments
+% Fast Fourier transform of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
+        % FFT of the individual segment
         tSpectrum(:,j,i) = fft(setup.Window .* xs(seg(j,1):seg(j,2),i));
+
+        % Time at which the FFT is evaluated
+        if nargout > 3
+            seg(j, 3) = mean(setup.Window .* ts(seg(j, 1):seg(j,2)));
+        end
     end
 end
 
@@ -464,26 +481,33 @@ end
 % Squeeze the resulting spectrum
 spectrum = squeeze(spectrum);
 
-%% Return the analyser setup and times at which the STFT is evaluated
+% Transform resulting spectra to decibels
+if ~isnan(setup.dbReference)
+    % Set the reference level automatically in not specified by the user
+    if setup.dbReference == 0
+        if setup.SpectralUnit == "PSD" || setup.SpectralUnit == "power"
+            setup.dbReference = sqrt(max(spectrum(:)));
+        else
+            setup.dbReference = max(spectrum(:));
+        end
+    end
+
+    % Calculate decibels
+    if setup.SpectralUnit == "PSD" || setup.SpectralUnit == "power"
+        % Calculate decibels for powerspectra, i.e. 20 log (s_i / s_ref)
+        spectrum = 10 * log10(spectrum / (setup.dbReference^2));
+    else
+        % Calculate decibels for linear spectra, i.e. 10 log (s_i / s_ref)
+        spectrum = 10 * log10(spectrum / setup.dbReference);
+    end  
+end
+
+%% Return the analyser setup
 if nargout == 3
     varargout{1} = setup;
 elseif nargout > 3
+    varargout{1} = seg(:, 3);
     varargout{2} = setup;
-    
-    % Generate a vector of time stamps if needed
-    if size(ts(:), 1) == 1
-        ts = 1/fs:1/fs:setup.DataDuration;
-    end
-    
-    % Change the analyser setup for evaluation of a static value (at 0 Hz)
-    setup.Averaging    = "none";
-    setup.jwWeigthing  = "none";
-    setup.SpectralUnit = "peak";
-    setup.HighPassFrequency = NaN;
-    setup.LowPassFrequency  = 0.5 * setup.FrequencyResolution;
-    
-    % Compute the times at which the STFT is evaluated
-    varargout{1} = autofft(ts, ts, setup);
 end
 % End of main fucntion
 end
