@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.0 (build 6. 6. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.5.0 (build 19. 6. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -124,7 +124,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
 %   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
-%     Specify the reference value to calculate the decibel scale.
+%     Specifies the reference value to calculate the decibel scale.
 %     - NaN - The output spectrum is not expressed in dB.
 %     - 0   - The output spectrum is expressed in dB. The reference value
 %             is selected automatically so that 0 dB is the maximum.
@@ -143,10 +143,15 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
-if size(xs, 1) == 1         % samples
-    xs = xs(:);                     
+if size(xs, 1) == 1     % samples
+    xs = xs(:);
 end
-if size(ts(:), 1) == 1      % sampling frequency
+
+if size(ts, 1) == 1     % sampling frequency or times
+    ts = ts(:);
+end
+
+if size(ts, 1) == 1     % sampling frequency or times
     fs = ts;
     ts = transpose(0.5/fs:1/fs:(size(xs, 1) - 0.5)/fs);
 else
@@ -180,17 +185,17 @@ if nargin == 3
     userFields = fieldnames(userSetup);
     oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "jw" "unit"];
     newFields = [4 5 6 8 9 13 16 17];
-    
+
     for i = 1:length(userFields)
         ind = strcmpi(userFields{i}, oldFields);
         if any(ind)
             userSetup.(setupFields{newFields(ind)}) = userSetup.(userFields{i});
         end
     end
-    
+
     % Refresh user-specified field names (these might changed above)
     userFields = fieldnames(userSetup);
-    
+
     % Merge the user-specified setup with the default analyser setup
     for i = 4:length(setupFields)
         ind = strcmpi(setupFields{i}, userFields);
@@ -209,7 +214,7 @@ if ~isnan(setup.FFTLength)
                 "FFT length has been changed to " + ...
                 num2str(setup.FFTLength, '%d') + " samples.");
     end
-% Check if there is user-defined time resolution  
+% Check if there is user-defined time resolution
 elseif ~isnan(setup.TimeResolution)
     if round(setup.TimeResolution * fs) > setup.DataLength
         setup.FFTLength = setup.DataLength;
@@ -246,7 +251,7 @@ end
 
 % Generate frequency vector
 switch lower(setup.Mode)
-    case "twosided" % Two-sided spectrum                
+    case "twosided" % Two-sided spectrum
         freq = [-flip(0:setup.FrequencyResolution:setup.LowPassFrequency) ...
                 setup.FrequencyResolution:setup.FrequencyResolution:setup.LowPassFrequency]';
         setup.Mode = "twosided";
