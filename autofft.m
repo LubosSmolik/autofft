@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.0 (build 19. 6. 2022)       e-mail: carlist{at}ntis.zcu.cz
+% v1.5.1 (build 30. 6. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -132,6 +132,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %             reference value specified by the user. 
 %
 % What's new in v1.5?
+% v1.5.1: Code optimisation: The STFT is now computed more efficiently.
+% v1.5.1: Bug fix: In same cases, times for the STFT were evaluated more
+%   than once. This has been fixed.
 % New functionality: The output spectra can be returned in decibel scale
 %   using the 'dbReference' parameter.
 % New function: A freqWeight function, which applies frequency weighting
@@ -383,20 +386,27 @@ end
 
 %% FFT
 % Preallocate an array for the DFT of individual segments
-tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
+tSegments = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
+%tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 
 % Fast Fourier transform of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
         % FFT of the individual segment
-        tSpectrum(:,j,i) = fft(setup.Window .* xs(seg(j,1):seg(j,2),i));
+        tSegments(:,j,i) = xs(seg(j,1):seg(j,2), i);
 
         % Time at which the FFT is evaluated
-        if nargout > 3
+        if i == 1 && nargout > 3
             seg(j, 3) = mean(setup.Window .* ts(seg(j, 1):seg(j,2)));
         end
     end
 end
+
+% Apply time weighting
+tSegments = setup.Window .* tSegments;
+
+% Perform FFT
+tSpectrum = fft(tSegments, [], 1);
 
 if exist("windowName", "var")
     setup.Window = windowName;

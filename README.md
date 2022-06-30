@@ -4,7 +4,7 @@ Matlab Signal Processing Toolbox™ provides several functions to power spectrum
 In such applications, you can use `autofft` to estimate the discrete Fourier transform (DFT), which mimics the properties of the Brüel & Kjaer FFT analysers. Based on your input, `autofft` segments signal, applies window functions and performs spectral averaging. The resulting DFT can be returned in various engineering spectral units, including decibels, magnitude, root mean square (RMS), peak-to-peak and power spectral density (PSD). autofft can also estimate spectral derivation or spectral integral of DFT and perform the short-time Fourier transform (STFT).
 
 ### Capabilities of autofft
-- It performs significantly better than `pwelch` in computationally intensive problems.
+- It performs significantly better than `pwelch` and `pspectrum` in computationally intensive problems.
 - Estimates magnitudes of components in your data in engineering units, e.g. dB, V or Pa.
 - Provides control over the setup of the frequency analyser, which is impossible with library functions.
 - Can apply high-pass and frequency weighting filters, spectral derivation or spectral integration.
