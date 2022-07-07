@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.1 (build 30. 6. 2022)       e-mail: carlist{at}ntis.zcu.cz
+% v1.5.2 (build 7. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -143,22 +143,18 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % Code optimisation: Times at which the STFT is evaluated are computed more
 %   efficiently.
 
-%% nargin check
+%% Validate number of input arguments
 narginchk(2, 3);
 
 %% Convert row vectors to column vectors if needed
-if size(xs, 1) == 1     % samples
+if size(xs, 1) == 1     % Samples
     xs = xs(:);
 end
 
-if size(ts, 1) == 1     % sampling frequency or times
-    ts = ts(:);
-end
-
-if size(ts, 1) == 1     % sampling frequency or times
+if length(ts) == 1      % User-specified sampling frequency 
     fs = ts;
-    ts = transpose(0.5/fs:1/fs:(size(xs, 1) - 0.5)/fs);
-else
+    ts = 0.5/fs;
+else                    % Compute sampling frequency from time stamps
     fs = (length(ts) - 1) / (ts(end) - ts(1)); 
 end
 
@@ -190,7 +186,7 @@ if nargin == 3
     oldFields = ["nwin" "twin" "df" "highpass" "lowpass" "overlap" "jw" "unit"];
     newFields = [4 5 6 8 9 13 16 17];
 
-    for i = 1:length(userFields)
+    for i = 1:size(userFields, 1)
         ind = strcmpi(userFields{i}, oldFields);
         if any(ind)
             userSetup.(setupFields{newFields(ind)}) = userSetup.(userFields{i});
@@ -201,7 +197,7 @@ if nargin == 3
     userFields = fieldnames(userSetup);
 
     % Merge the user-specified setup with the default analyser setup
-    for i = 4:length(setupFields)
+    for i = 4:size(setupFields, 1)
         ind = strcmpi(setupFields{i}, userFields);
         if any(ind)
             setup.(setupFields{i}) = userSetup.(userFields{ind});
@@ -257,21 +253,21 @@ end
 switch lower(setup.Mode)
     case "twosided" % Two-sided spectrum
         freq = [-flip(0:setup.FrequencyResolution:setup.LowPassFrequency) ...
-                setup.FrequencyResolution:setup.FrequencyResolution:setup.LowPassFrequency]';
+                setup.FrequencyResolution:setup.FrequencyResolution:setup.LowPassFrequency].';
         setup.Mode = "twosided";
 
         % Vector of indices for manipulation with the DFT
         sc  = 1;                            % Scaling constant
         st  = (size(freq, 1) - 1) / 2 + 1;  % Index of the static component
-        ind = [setup.FFTLength - st + 2:setup.FFTLength, 1:st]';
+        ind = [setup.FFTLength - st + 2:setup.FFTLength, 1:st].';
     otherwise       % One-sided spectrum 
-        freq = (0:setup.FrequencyResolution:setup.LowPassFrequency)';
+        freq = (0:setup.FrequencyResolution:setup.LowPassFrequency).';
         setup.Mode = "onesided";
 
         % Vector of indices for manipulation with the DFT
         sc  = 2;                            % Scaling constant
         st  = 1;                            % Index of the static component
-        ind = (1:size(freq, 1))';
+        ind = (1:size(freq, 1)).';
 end
 
 % Calculate number of overlaping samples
@@ -290,7 +286,7 @@ setup.OverlapPercentage = 100 * setup.OverlapLength / setup.FFTLength;
 % Calculate the number of segments and segment indices
 setup.NumberOfAverages = floor((setup.DataLength - setup.OverlapLength) / ...
                                (setup.FFTLength - setup.OverlapLength));
-seg = zeros(setup.NumberOfAverages, 3);         % matrix of segment indices
+seg = zeros(setup.NumberOfAverages, 2);         % matrix of segment indices
 ni  = 1;                                        % pointer
 for i = 1:setup.NumberOfAverages                % cycle through segments
     seg(i, 1) = ni; 
@@ -305,15 +301,15 @@ if isnumeric(setup.Window)
     setup.Window = setup.Window(:);
     
     % Interpolate missing values in the window function if necessary
-    if  length(setup.Window) ~= setup.FFTLength
+    if  size(setup.Window, 1) ~= setup.FFTLength
         % Use the modified Akima interpolation (Matlab v2019b or newer)
         try   
-            setup.Window = makima(linspace(0, 1, length(setup.Window)), ...
-                             setup.Window, linspace(0,1,setup.FFTLength)');
+            setup.Window = makima(linspace(0, 1, size(setup.Window, 1)), ...
+                             setup.Window, linspace(0,1,setup.FFTLength).');
         % Use the spline interpolation (Matlab v2019a or older)
         catch 
-            setup.Window = spline(linspace(0, 1, length(setup.Window)), ...
-                             setup.Window, linspace(0,1,setup.FFTLength)');
+            setup.Window = spline(linspace(0, 1, size(setup.Window, 1)), ...
+                             setup.Window, linspace(0,1,setup.FFTLength).');
         end
         warning("The window function has been interpolated to " + ...
                 num2str(setup.FFTLength, "%d") + " samples.");
@@ -359,7 +355,8 @@ end
 setup.Window = setup.Window ./ mean(setup.Window);
 
 % Calculate the noise power bandwidth of the window function in Hz
-setup.WindowNoiseBandwidth = enbw(setup.Window, fs);
+% exploiting the fact that mean(setup.Window) == 1
+setup.WindowNoiseBandwidth = fs * mean(setup.Window.^2) / setup.FFTLength;
 
 %% Filtering
 if ~isnan(setup.HighPassFrequency)
@@ -387,18 +384,12 @@ end
 %% FFT
 % Preallocate an array for the DFT of individual segments
 tSegments = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
-%tSpectrum = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 
 % Fast Fourier transform of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
         % FFT of the individual segment
-        tSegments(:,j,i) = xs(seg(j,1):seg(j,2), i);
-
-        % Time at which the FFT is evaluated
-        if i == 1 && nargout > 3
-            seg(j, 3) = mean(setup.Window .* ts(seg(j, 1):seg(j,2)));
-        end
+        tSegments(:, j, i) = xs(seg(j,1):seg(j,2), i);
     end
 end
 
@@ -408,11 +399,7 @@ tSegments = setup.Window .* tSegments;
 % Perform FFT
 tSpectrum = fft(tSegments, [], 1);
 
-if exist("windowName", "var")
-    setup.Window = windowName;
-end
-
-% Application of the jw weigthing and evaluation of halfspectra
+% Application of the jw weigthing and computation of unscaled magnitudes
 switch lower(setup.jwWeigthing)
     case {"1/jw2", "double integration"}
         tSpectrum(ind,:,:) = abs((-1 ./ (4 * pi^2 * freq.^2)) .* ...
@@ -513,11 +500,31 @@ if ~isnan(setup.dbReference)
 end
 
 %% Return the analyser setup
+% Return the analyser setup only
 if nargout == 3
+    % Convert numeric representation of the window to string
+    if exist("windowName", "var")
+        setup.Window = windowName;
+    end
+
     varargout{1} = setup;
+
+% Return segment times and the analyser setup
 elseif nargout > 3
-    varargout{1} = seg(:, 3);
+    % Compute the relative segment times
+    tshift = (setup.FFTLength - setup.OverlapLength) / fs;
+    tseg   = (0:tshift:(setup.NumberOfAverages - 1) * tshift).';
+    
+    % Compute the absolute segment times        
+    varargout{1} = mean(setup.Window .* (0:setup.FFTLength-1).') / fs + ts(1) + tseg;
+
+    % Convert numeric representation of the window to string
+    if exist("windowName", "var")
+        setup.Window = windowName;
+    end
+
     varargout{2} = setup;
 end
+
 % End of main fucntion
 end
