@@ -1,27 +1,35 @@
 function [Z, P, G] = autoButter(n, Wn, varargin)
 % AUTOBUTTER Butterworth-like digital filter design
 %
-%  Copyright (c) 2014              Jan Simon
-%  Copyright (c) 2022              Lubos Smolik (revisions)
+%  Copyright (c) 2014              Jan Simon - original code
+%  Copyright (c) 2022              Lubos Smolik - validation, revisions
 % v1.1.0 (build 7. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
 % Docs - TO DO
 
-% Validate number of input arguments
+% Validate number of input arguments and input parameters
 narginchk(2, 4)
 
-if nargin == 2 % Use a default value for the filter type if not specified
-    varargin{1} = 'low';
-elseif nargin == 4 % Compute normalized cutoff frequency Wn from fc and fs
-    Wn = 2 * Wn / varargin{1};
+validateattributes(n,{'numeric'},{'scalar','integer','positive'},'autoButter','N');
+validateattributes(Wn,{'numeric'},{'vector','real','finite'},'autoButter','Wn');
+switch nargin
+    case 2  % Use a default value for the filter type if not specified
+        varargin{1} = 'low';
+    case 3  % Validate filter type
+        validateattributes(varargin{1},{'char','string'},{'scalartext'},'autoButter','ftype');
+    case 4 % Validate sample frequency and filter type
+        validateattributes(varargin{1},{'numeric'},{'scalar','real','positive','finite'},'autoButter','fs');
+        validateattributes(varargin{2},{'char','string'},{'scalartext'},'autoButter','ftype');
+        % Compute normalized cutoff frequency Wn from fc and fs
+        Wn = 2 * Wn / varargin{1};
 end
 
 % Show warning if the filter order is too high
 if n > 15
-    warning(['Use of autoButter for filter orders higher than 15 is' ...
-             ' not recommended due to limited accuracy'])
+    warning(['Use of autoButter for filter orders higher than 15 is ' ...
+             'not recommended due to limited accuracy'])
 end
 
 % Construct the n-th order analog lowpass prototype
