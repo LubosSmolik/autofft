@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 %  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.2 (build 7. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.5.2 (build 10. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -143,8 +143,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % Code optimisation: Times at which the STFT is evaluated are computed more
 %   efficiently.
 
-%% Validate number of input arguments
+%% Validate number of input and output arguments
 narginchk(2, 3);
+nargoutchk(1, 4);
 
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1     % Samples
@@ -365,19 +366,16 @@ if ~isnan(setup.HighPassFrequency)
         xs = detrend(xs, 0);
     end
     
-    % Construct and apply an elliptic high-pass filter
+    % Construct and apply a Butterworth high-pass filter
     if setup.HighPassFrequency ~= 0
-        n     = 1;    % Filter order
-        aPass = 0.1;  % Passband ripple (dB)
-        aStop = 20;   % Stopband attenuation (dB)
+        n  = 1;                                 % Filter order
+        fc = abs(setup.HighPassFrequency) / 10; % Cutoff frequency (-3 dB)
 
-        % Construct an FDESIGN object (5x faster than designfilt)
-        h  = fdesign.highpass("N,Fp,Ast,Ap", n, abs(setup.HighPassFrequency), ...
-                                             aStop, aPass, fs);
-        hp = design(h, "ellip");
+        % Design filter using an internal function
+        [b, a] = utilities.autoButter(n, fc, fs, 'high');
         
         % Filter xs
-        xs = filter(hp, xs);
+        xs = filter(b, a, xs);
     end
 end
 
@@ -388,13 +386,10 @@ tSegments = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 % Fast Fourier transform of the time-weighted segments
 for i = 1:size(xs, 2)
     for j = 1:setup.NumberOfAverages
-        % FFT of the individual segment
-        tSegments(:, j, i) = xs(seg(j,1):seg(j,2), i);
+        % Apply time weighting
+        tSegments(:, j, i) = setup.Window .* xs(seg(j,1):seg(j,2), i);
     end
 end
-
-% Apply time weighting
-tSegments = setup.Window .* tSegments;
 
 % Perform FFT
 tSpectrum = fft(tSegments, [], 1);
