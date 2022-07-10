@@ -1,29 +1,61 @@
-function [Z, P, G] = autoButter(n, Wn, varargin)
-% AUTOBUTTER Butterworth-like digital filter design
+function [Z, P, G] = autoButter(n, wn, varargin)
+% AUTOBUTTER Butterworth digital filter design
 %
-%  Copyright (c) 2014              Jan Simon - original code
-%  Copyright (c) 2022              Lubos Smolik - validation, revisions
-% v1.1.0 (build 7. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2014                Jan Simon - original code
+% Copyright (c) 2022                Lubos Smolik - validation, revisions
+% v1.1.0 (build 10. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
-% Docs - TO DO
+% [b, a] = autoButter(n, wn)
+% [b, a] = autoButter(n, wn, ftype)
+% [b, a] = autoButter(n, fc, fs, ftype)
+% [z, p, g] = autoButter(...)
+%
+% [b,a] = autoButter(n,wn) designs an nth order lowpass digital Butterworth
+%   filter with 3 dB attenuation at cutoff frequency wn. Cutoff frequency
+%   wn must be 0 < wn < 1, with 1 being the Nyquist frequency, i.e. half of
+%   the sampling frequency. Vectors b and a contain filter numerator and
+%   denominator coefficients, respectively. The coefficients are listed in
+%   descending powers of z. 
+%   If wn is a two-element vector, i.e. wn = [w1 w2], autoButter returns a
+%   bandpass filter with passband w1 < w < w2.
+%
+% [b,a] = autoButter(n,wn,ftype) allows for the definition of the filter
+%   type using ftype parameter:
+%   [b,a] = autoButter(n,wn,'high') designs a highpass filter.
+%   [b,a] = autoButter(n,wn,'low') designs a lowpass filter.
+%   [b,a] = autoButter(n,wn,'stop') is a bandstop filter if wn = [w1 w2].
+%   [b,a] = autoButter(n,wn,'bandpass') designs a bandpass filter if wn =
+%                                                                  [w1 w2].
+%   
+% [b,a] = autoButter(n,fc,fs,ftype) designs a digital Butterworth filter
+%   with cutoff frequency or frequencies fc and sampling frequency fs.
+%   Parameter ftype specifies the filter type.
+%
+% [z,p,g] = autoButter(...) returns vectors containing zeros z and poles p,
+%   and scalar g corresponding to the filter gain.
 
 % Validate number of input arguments and input parameters
-narginchk(2, 4)
+narginchk(2, 4);
+nargoutchk(2, 3);
 
-validateattributes(n,{'numeric'},{'scalar','integer','positive'},'autoButter','N');
-validateattributes(Wn,{'numeric'},{'vector','real','finite'},'autoButter','Wn');
+validateattributes(n,{'numeric'},{'scalar','integer','positive'},'autoButter','n');
+validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
 switch nargin
     case 2  % Use a default value for the filter type if not specified
-        varargin{1} = 'low';
+        if length(Ws) == 1
+            varargin{1} = 'low';
+        else
+            varargin{1} = 'bandpass';
+        end
     case 3  % Validate filter type
         validateattributes(varargin{1},{'char','string'},{'scalartext'},'autoButter','ftype');
     case 4 % Validate sample frequency and filter type
         validateattributes(varargin{1},{'numeric'},{'scalar','real','positive','finite'},'autoButter','fs');
         validateattributes(varargin{2},{'char','string'},{'scalartext'},'autoButter','ftype');
-        % Compute normalized cutoff frequency Wn from fc and fs
-        Wn = 2 * Wn / varargin{1};
+        % Compute normalized cutoff frequency wn from fc and fs
+        wn = 2 * wn / varargin{1};
 end
 
 % Show warning if the filter order is too high
@@ -33,10 +65,10 @@ if n > 15
 end
 
 % Construct the n-th order analog lowpass prototype
-V = tan(Wn * 1.5707963267948966);
+V = tan(0.5 * pi * wn);
 
 % Temporary poles located  on the unit circle in the left-half plane
-Q = exp((1.5707963267948966i / n) * ((2 + n - 1):2:(3 * n - 1)));
+Q = exp((0.5i * pi / n) * ((2 + n - 1):2:(3 * n - 1)));
 nQ = size(Q, 2);
 
 % Transform the analog prototype to state-space
@@ -76,8 +108,8 @@ else
    Z(1:length(Sz)) = (1 + Sz) ./ (1 - Sz);
 end
 
-% From Zeros, Poles and Gain to B (numerator) and A (denominator):
+% From zeros, ples and gain to b (numerator) and a (denominator):
 if nargout == 2
-   Z = G * real(poly(Z'));  % B
-   P = real(poly(P));       % A
+   Z = G * real(poly(Z'));  % b
+   P = real(poly(P));       % a
 end
