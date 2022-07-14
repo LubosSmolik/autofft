@@ -3,7 +3,7 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %
 % Copyright (c) 2014                Jan Simon - original code
 % Copyright (c) 2022                Lubos Smolik - validation, revisions
-% v1.1.0 (build 10. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.1.0 (build 14. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -49,14 +49,14 @@ switch nargin
         else
             varargin{1} = 'bandpass';
         end
-    case 3  % Validate filter type
-        validateattributes(varargin{1},{'char','string'},{'scalartext'},'autoButter','ftype');
-    case 4 % Validate sample frequency and filter type
+    case 4 % Validate sample frequency
         validateattributes(varargin{1},{'numeric'},{'scalar','real','positive','finite'},'autoButter','fs');
-        validateattributes(varargin{2},{'char','string'},{'scalartext'},'autoButter','ftype');
         % Compute normalized cutoff frequency wn from fc and fs
         wn = 2 * wn / varargin{1};
 end
+
+% Validate filter type - accept also partial strings
+ftype = validatestring(varargin{end},{'low','high','bandpass','stop'},'autoButter','ftype');
 
 % Show warning if the filter order is too high
 if n > 15
@@ -72,7 +72,7 @@ Q = exp((0.5i * pi / n) * ((2 + n - 1):2:(3 * n - 1)));
 nQ = size(Q, 2);
 
 % Transform the analog prototype to state-space
-switch lower(varargin{end})
+switch ftype
    case 'stop'
       Sg = 1 / prod(-Q);
       c  = -V(1) * V(2);
@@ -94,8 +94,6 @@ switch lower(varargin{end})
       Sg = V ^ nQ;
       Sp = V * Q;
       Sz = [];
-   otherwise
-      error('user:myButter:badFilter', 'Unknown filter type: %s', pass)
 end
 
 % Bilinear transform
