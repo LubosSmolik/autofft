@@ -40,11 +40,23 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 narginchk(2, 4);
 nargoutchk(2, 3);
 
-validateattributes(n,{'numeric'},{'scalar','integer','positive'},'autoButter','n');
-validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
+% Validate n
+[n, ~, istrivial] = utilities.validateN(n);
+if istrivial
+    if nargout == 2
+        Z = 1;  % a
+        P = 1;  % b
+    else
+        Z = 0;
+        P = 0;
+        G = 1;
+    end
 
-% Convert n and wn to doubles to enforce precision
-n  = double(n);
+    return;
+end
+
+% Validate wn and convert to double to enforce precision
+validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
 wn = double(n);
 
 switch nargin
