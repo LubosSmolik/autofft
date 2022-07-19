@@ -3,7 +3,7 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %
 % Copyright (c) 2014                Jan Simon - original code
 % Copyright (c) 2022                Lubos Smolik - validation, revisions
-% v1.1.0 (build 14. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.1.0 (build 19. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -42,9 +42,14 @@ nargoutchk(2, 3);
 
 validateattributes(n,{'numeric'},{'scalar','integer','positive'},'autoButter','n');
 validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
+
+% Convert n and wn to doubles to enforce precision
+n  = double(n);
+wn = double(n);
+
 switch nargin
     case 2  % Use a default value for the filter type if not specified
-        if length(Ws) == 1
+        if length(wn) == 1
             varargin{1} = 'low';
         else
             varargin{1} = 'bandpass';
@@ -52,7 +57,7 @@ switch nargin
     case 4 % Validate sample frequency
         validateattributes(varargin{1},{'numeric'},{'scalar','real','positive','finite'},'autoButter','fs');
         % Compute normalized cutoff frequency wn from fc and fs
-        wn = 2 * wn / varargin{1};
+        wn = 2 * wn / double(varargin{1});
 end
 
 % Validate filter type - accept also partial strings
