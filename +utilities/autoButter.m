@@ -3,7 +3,7 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %
 % Copyright (c) 2014                Jan Simon - original code
 % Copyright (c) 2022                Lubos Smolik - validation, revisions
-% v1.1.0 (build 19. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% v1.1.1 (build 20. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -41,8 +41,8 @@ narginchk(2, 4);
 nargoutchk(2, 3);
 
 % Validate n
-[n, ~, istrivial] = utilities.validateN(n);
-if istrivial
+n = utilities.validateN(n);
+if n == 0
     if nargout == 2
         Z = 1;  % a
         P = 1;  % b
@@ -57,7 +57,7 @@ end
 
 % Validate wn and convert to double to enforce precision
 validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
-wn = double(n);
+wn = double(wn);
 
 switch nargin
     case 2  % Use a default value for the filter type if not specified
