@@ -1,8 +1,8 @@
 function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
-%  Copyright (c) 2017-2022         Lubos Smolik, University of West Bohemia
-% v1.5.2 (build 10. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2017-2022          Luboš Smolík, Jan Rendl, Roman Pašek
+% v1.5.2 (build 20. 7. 2022)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -132,6 +132,15 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %             reference value specified by the user. 
 %
 % What's new in v1.5?
+% v1.5.2: Changed functionality: The package no longer requires the Signal
+%   Processing Toolbox™.
+% v1.5.2: Changed functionality: A first-order Butterworth digital filter
+%   is now used for high-pass filtering rather than a first-order elliptic
+%   filter.
+% v1.5.2: New functions: The package is now distributed with functions that
+%   can construct Blackman-Harris, flat-top, Hamming, Hann, Kaiser and
+%   uniform windows and can design an nth order Butterworth digital filter.
+%   These functions can be found in +utilities directory.
 % v1.5.1: Code optimisation: The STFT is now computed more efficiently.
 % v1.5.1: Bug fix: In same cases, times for the STFT were evaluated more
 %   than once. This has been fixed.
@@ -145,7 +154,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 
 %% Validate number of input and output arguments
 narginchk(2, 3);
-nargoutchk(1, 4);
+nargoutchk(0, 4);
 
 %% Convert row vectors to column vectors if needed
 if size(xs, 1) == 1     % Samples
@@ -319,17 +328,17 @@ else
     % Generate the window function internally
     switch lower(extractBefore(setup.Window, 2))
         case "b"    % Blackmann-Harris
-            setup.Window = blackmanharris(setup.FFTLength);
+            setup.Window = utilities.autoBlackmanHarris(setup.FFTLength);
             windowName   = "Blackmann-Harris";
         case "f"    % flat-top
-            setup.Window = flattopwin(setup.FFTLength);
+            setup.Window = utilities.autoFlatTop(setup.FFTLength);
             windowName   = "flat-top";
         case "h"    % Hann or Hamming
             if strncmpi(setup.Window, "ham", 3) % Hamming
-                setup.Window = hamming(setup.FFTLength);
+                setup.Window = utilities.autoHamming(setup.FFTLength);
                 windowName   = "Hamming";
             else    % Hann
-                setup.Window = hann(setup.FFTLength);
+                setup.Window = utilities.autoHann(setup.FFTLength);
                 windowName   = "Hann";
             end
         case "k"    % Kaiser
@@ -337,17 +346,17 @@ else
             beta = str2double(regexprep(setup.Window,"[a-zA-Z,=\s]",""));
 
             if isnan(beta) % Use the default Kaiser window (beta = 1.6)
-                setup.Window = kaiser(setup.FFTLength, 1.6);
+                setup.Window = utilities.autoKaiser(setup.FFTLength, 1.6);
                 windowName   = "Kaiser, b = 0.5";
             else
-                setup.Window = kaiser(setup.FFTLength, beta);
+                setup.Window = utilities.autoKaiser(setup.FFTLength, beta);
                 windowName   = "Kaiser, b = " + string(beta);
             end
         case "m"    % Hamming
-            setup.Window = hamming(setup.FFTLength);
+            setup.Window = utilities.autoHamming(setup.FFTLength);
             windowName   = "Hamming";
         otherwise   % uniform
-            setup.Window = rectwin(setup.FFTLength);
+            setup.Window = utilities.autoUniform(setup.FFTLength);
             windowName   = "uniform";
     end
 end
