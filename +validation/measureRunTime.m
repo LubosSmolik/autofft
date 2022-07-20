@@ -80,9 +80,6 @@ end
 % Clear t, s, x to limit the size of the results
 clear t s x
 
-% Save results
-save("../results/results.mat")
-
 % Plot results
 figure;
 axes(Box = "on", NextPlot = "add", XScale = "log", YScale = "log");
@@ -90,7 +87,6 @@ plot(nseg, tautofft, DisplayName = "autofft", LineWidth = 1);
 plot(nseg, tpspectrum, DisplayName = "psepctrum", LineWidth = 1);
 plot(nseg, tpwelch, DisplayName = "pwelch", LineWidth = 1);
 legend;
-saveas(gcf, "../results/powerspectrum.fig");
 
 figure;
 axes(Box = "on", NextPlot = "add", XScale = "log", YScale = "log");
@@ -99,4 +95,3 @@ plot(nseg, stpspectrum, DisplayName = "psepctrum", LineWidth = 1);
 plot(nseg, ststft, DisplayName = "stft", LineWidth = 1);
 plot(nseg, stspectrogram, DisplayName = "spectrogram", LineWidth = 1);
 legend;
-saveas(gcf, "../results/stft.fig");
