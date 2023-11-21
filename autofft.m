@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 % Copyright (c) 2017-2023          Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.3 (build 21. 11. 2023)       e-mail: carlist{at}ntis.zcu.cz
+% v1.5.3beta (build 21. 11. 2023)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -123,7 +123,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-%   - 'Unit' - ! TO DO!
+%   - 'EngineeringUnit' - ! TO DO!
 %
 %   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
 %     Specifies the reference value to calculate the decibel scale.
@@ -192,7 +192,7 @@ setup = struct("SamplingFrequency",    fs, ...
                "NumberOfAverages",     NaN, ...
                "jwWeigthing",          "none", ...
                "SpectralUnit",         "power", ...
-               "Unit",                 "", ...
+               "EngineeringUnit",      "", ...
                "dbReference",          NaN, ...
                "PlotLayout",           "none");
 setupFields = fieldnames(setup);
