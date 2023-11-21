@@ -1,8 +1,8 @@
 function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
-% Copyright (c) 2017-2022          Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.2 (build 20. 7. 2022)       e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2017-2023          Luboš Smolík, Jan Rendl, Roman Pašek
+% v1.5.3 (build 21. 11. 2023)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -123,6 +123,8 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
+%   - 'Unit' - ! TO DO!
+%
 %   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
 %     Specifies the reference value to calculate the decibel scale.
 %     - NaN - The output spectrum is not expressed in dB.
@@ -131,7 +133,11 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - positive scalar - The output spectrum is expressed in dB with the
 %             reference value specified by the user. 
 %
+%   - 'PlotLayout' - [ none | tiled | separated | stacked ]
+%      ! TO DO !
+%
 % What's new in v1.5?
+% v1.5.3: !TO DO!
 % v1.5.2: Changed functionality: The package no longer requires the Signal
 %   Processing Toolbox™.
 % v1.5.2: Changed functionality: A first-order Butterworth digital filter
@@ -186,7 +192,9 @@ setup = struct("SamplingFrequency",    fs, ...
                "NumberOfAverages",     NaN, ...
                "jwWeigthing",          "none", ...
                "SpectralUnit",         "power", ...
-               "dbReference",          NaN);
+               "Unit",                 "", ...
+               "dbReference",          NaN, ...
+               "PlotLayout",           "none");
 setupFields = fieldnames(setup);
 
 % Set user-specified parameters
@@ -370,21 +378,50 @@ setup.WindowNoiseBandwidth = fs * mean(setup.Window.^2) / setup.FFTLength;
 
 %% Filtering
 if ~isnan(setup.HighPassFrequency)
-    % Remove the mean value from xs
-    if setup.HighPassFrequency >= 0
-        xs = detrend(xs, 0);
-    end
-    
-    % Construct and apply a Butterworth high-pass filter
-    if setup.HighPassFrequency ~= 0
-        n  = 1;                                 % Filter order
-        fc = abs(setup.HighPassFrequency) / 10; % Cutoff frequency (-3 dB)
-
-        % Design filter using an internal function
-        [b, a] = utilities.autoButter(n, fc, fs, 'high');
+    % setup.HighPassFrequency is a single number
+    if isnumeric(setup.HighPassFrequency)
+        % Remove the mean value from xs
+        if setup.HighPassFrequency >= 0
+            xs = detrend(xs, 0);
+        end
         
+        % Construct and apply a Butterworth high-pass filter
+        if setup.HighPassFrequency ~= 0
+            n  = 1;                                 % Filter order
+            fc = abs(setup.HighPassFrequency) / 10; % Cutoff frequency (-3 dB)
+    
+            % Design filter using an internal function
+            [b, a] = utilities.autoButter(n, fc, fs, 'high');
+            
+            % Filter xs
+            xs = filter(b, a, xs);
+        end
+
+    % setup.HighPassFrequency is a cell array containing vectors b and a
+    % (i.e. {[b], [a]} that define numerator and denominator coefficients
+    % of a rational transfer function
+    elseif iscell(setup.HighPassFrequency) && all(cellfun(@isnumeric,c))
         % Filter xs
-        xs = filter(b, a, xs);
+        xs = filter(setup.HighPassFrequency{1}(:), ...
+                    setup.HighPassFrequency{2}(:), xs);
+
+    % Try to apply object stored in setup.HighPassFrequency to xs
+    % Note: This is a crude solution, but Matlab can recognise filters only
+    %   if the DSP Toolbox is installed. This toolbox contains isfir and
+    %   issos functions which can be used.
+    else
+        try
+            % Filter xs
+            temp = filter(setup.HighPassFrequency, xs);
+
+            % Validate size of the filtered output
+                if all(size(xs) == size(temp))
+                    xs = temp;
+                end
+        catch
+            warning("The user filter has returned unexpected results.")
+            warning("Frequency analysis will be performed on unfiltered data.")
+        end
     end
 end
 
@@ -503,30 +540,56 @@ if ~isnan(setup.dbReference)
     end  
 end
 
-%% Return the analyser setup
-% Return the analyser setup only
-if nargout == 3
-    % Convert numeric representation of the window to string
-    if exist("windowName", "var")
-        setup.Window = windowName;
-    end
-
-    varargout{1} = setup;
-
-% Return segment times and the analyser setup
-elseif nargout > 3
+%% Display results
+% Compute segment times
+if setup.NumberOfAverages > 1 && setup.Averaging == "none"
     % Compute the relative segment times
     tshift = (setup.FFTLength - setup.OverlapLength) / fs;
     tseg   = (0:tshift:(setup.NumberOfAverages - 1) * tshift).';
-    
-    % Compute the absolute segment times        
-    varargout{1} = mean(setup.Window .* (0:setup.FFTLength-1).') / fs + ts(1) + tseg;
 
+    % Compute the absolute segment times        
+    tseg = mean(setup.Window .* (0:setup.FFTLength-1).') / fs + ts(1) + tseg;
+end
+
+% Display results
+if nargout == 0 || setup.PlotLayout ~= "none"
+    % Change the PlotLayout parameter if the user expects graphical output
+    if setup.PlotLayout == "none"
+        setup.PlotLayout = "separated";
+    end
+
+    % Display spectra
+    if setup.NumberOfAverages == 1 || setup.Averaging ~= "none"
+        utilities.autoPlot(setup, spectrum, freq);
+
+    % Display spectrograms
+    else
+        utilities.autoPlot(setup, spectrum, freq, tseg);
+    end
+end
+ 
+% Arrange outputs
+% Return the analyser setup only
+if nargout == 3 && (setup.NumberOfAverages == 1 || setup.Averaging ~= "none")
+    % Convert numeric representation of the window to string
+    if exist("windowName", "var")
+        setup.Window = windowName;
+    end
+   
+    varargout{1} = setup;
+ 
+% Return the segment times only
+elseif nargout == 3 && setup.NumberOfAverages > 1 && setup.Averaging == "none"
+    varargout{1} = tseg;
+
+% Return segment times and the analyser setup
+elseif nargout > 3
     % Convert numeric representation of the window to string
     if exist("windowName", "var")
         setup.Window = windowName;
     end
 
+    varargout{1} = tseg;
     varargout{2} = setup;
 end
 
