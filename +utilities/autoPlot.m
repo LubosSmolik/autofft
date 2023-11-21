@@ -1,8 +1,8 @@
 function autoPlot(setup, s, f, t)
 %AUTOPLOT plots a spectrum or spectra computed by the autofft function.
 %
-% Copyright (c) 2023, Lubos Smolik
-% v1.0.0beta (build 7. 11. 2023)
+% Copyright (c) 2023, Luboš Smolík
+% v1.0.0beta (build 21. 11. 2023)
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -11,12 +11,13 @@ function autoPlot(setup, s, f, t)
 %
 % autoPlot(setup, s, f) plots a spectrum or spectra stored in s assuming
 %   frequencies stored in a vector f. Visualisation parameters are
-%   determined by PlotLayout and Unit fields in a structure array setup.
+%   determined by PlotLayout and EngineeringUnit fields in a structure 
+%   array setup.
 %   
 % autoPlot(setup, s, f, t) plots a spectrogram or spectrograms stored in s
 %   assuming frequencies stored in a vector f and time stamps stored in a
 %   vector t. Visualisation parameters are determined by PlotLayout and
-%   Unit fields in a structure array setup.
+%   EngineeringUnit fields in a structure array setup.
 %
 % --- TO DO: Detailed explanation of field values ---
 
@@ -24,9 +25,9 @@ function autoPlot(setup, s, f, t)
 narginchk(3,4)
 
 %% Validate inputs
-% Check if a "Unit" field exists and if it is nonempty
-if ~isfield(setup, "Unit") || strtrim(setup.Unit) == ""
-    setup.Unit = "MU";
+% Check if a "EngineeringUnit" field exists and if it is nonempty
+if ~isfield(setup, "EngineeringUnit") || strtrim(setup.EngineeringUnit) == ""
+    setup.EngineeringUnit = "EU";
 end
 
 % Check if a "Averaging" field exists and if it is nonempty
@@ -62,19 +63,23 @@ end
 
 switch lower(setup.SpectralUnit)
     case "rms"                          % RMS magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.Unit + ", RMS)";
+        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+                   + ", RMS)";
     case {"pk", "0-pk", "peak"}         % 0-peak magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.Unit + ", 0-Pk)";
+        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+                   + ", 0-Pk)";
     case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.Unit + ", Pk-Pk)";
+        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+                   + ", Pk-Pk)";
     case {"asd", "psd"}                 % Power spectral density
-        unitlab = "Power Spectral Density" + dblab + " (" + setup.Unit ...
-                  + ")^2 / Hz";
+        unitlab = "Power Spectral Density" + dblab + " (" ...
+                   + setup.EngineeringUnit + ")^2 / Hz";
     case {"rsd", "rmssd"}               % Root mean square spectral density
-        unitlab = "Power Spectral Density" + dblab + " (" + setup.Unit ...
-                  + ") / (Hz^1/2)";
+        unitlab = "Power Spectral Density" + dblab + " (" ...
+                   + setup.EngineeringUnit + ") / (Hz^1/2)";
     otherwise                           % Autospectrum / power spectrum
-        unitlab = "Autospectrum" + dblab + " (" + setup.Unit + ")^2";
+        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+                   + ")^2";
 end
 
 %% Plot data
