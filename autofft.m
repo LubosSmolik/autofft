@@ -6,39 +6,41 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %
 % This code is published under BSD-3-Clause License.
 %
+%
 % autofft(xs, fs)
 % autofft(xs, ts)
+% autofft(___, setup)
 % s = autofft(___)
-% s = autofft(___, setup)
 % [s, f] = autofft(___)
 % [s, f, setup] = autofft(___)
 % [s, f, t] = autofft(___)
 % [s, f, t, setup] = autofft(___)
 %
+%
 % autofft(xs, fs) computes and diplays the autospectrum or spectrogram of
-%   xs using sampling frequency fs in Hz. xs can be either a vector or an
-%   array consisting of column vectors. In the latter case, each spectrum
-%   or spectrogram is shown in a separate figure.
+%   input xs using sampling frequency fs in Hz. xs can be either a vector
+%   or an array consisting of column vectors. In the latter case, each
+%   spectrum or spectrogram is shown in a separate figure.
 %
-% s = autofft(xs, ts) computes and diplays the autospectrum or spectrogram
-%   of xs using a vector of time stamps ts.
+% autofft(xs, ts) computes and diplays the autospectrum or spectrogram of
+%   input xs using a vector of time stamps ts.
 % 
-% s = autofft(___) computes and returns the autospectrum or spectrogram s
-%   of xs. Does not diplay the computed data.
-%
-% [___] = autofft(___, setup) computes and returns the autospectrum or
-%   spectrogram s of xs using name-value pair arguments specified in a
-%   structure array setup. Does not display the computed data unless
-%   specified in setup.
+% autofft(___, setup) computes and diplays the autospectrum or spectrogram
+%   of input xs using name-value pair arguments specified in a structure
+%   array setup.
+% 
+% s = autofft(___) computes and returns autospectrum or the short-time
+%   Fourier transform (STFT) of input xs. Does not visualise the results
+%   unless specified in setup.
 %
 % [s, f] = autofft(___) also returns the vector of frequencies f at which
-%   the autospectrum or spectrogram are evaluated.
+%   the autospectrum or spectrogram s are evaluated.
 %
 % [s, f, setup] = autofft(___) also returns the setup of the FFT analyser
 %   if s is the autospectrum.
 %
 % [s, f, t] = autofft(___) also returns the vector of times t at which the
-%   spectrogram slices are evaluated if s is the spectrogram.
+%   STFT slices are evaluated if the STFT is performed.
 %
 % [s, f, t, setup] = autofft(___) returns all information available.
 %
