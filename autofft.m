@@ -2,41 +2,52 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 % Copyright (c) 2017-2023          Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.3beta (build 21. 11. 2023)       e-mail: carlist{at}ntis.zcu.cz
+% v1.5.3 (build 24. 11. 2023)      e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
-% s = autofft(xs, fs)
-% s = autofft(xs, ts)
+% autofft(xs, fs)
+% autofft(xs, ts)
+% s = autofft(___)
 % s = autofft(___, setup)
 % [s, f] = autofft(___)
 % [s, f, setup] = autofft(___)
+% [s, f, t] = autofft(___)
 % [s, f, t, setup] = autofft(___)
 %
-% s = autofft(xs, fs) returns the DFT or STFT s of xs using sampling
-%   frequency fs (Hz). xs can be either a vector or an array consisting of
-%   column vectors.
+% autofft(xs, fs) computes and diplays the autospectrum or spectrogram of
+%   xs using sampling frequency fs in Hz. xs can be either a vector or an
+%   array consisting of column vectors. In the latter case, each spectrum
+%   or spectrogram is shown in a separate figure.
 %
-% s = autofft(xs, ts) returns the DFT or STFT s of xs using a vector of
-%   time stamps ts (s). Also returns the frequencies f at which the DFT or
-%   STFT s is evaluated.
+% s = autofft(xs, ts) computes and diplays the autospectrum or spectrogram
+%   of xs using a vector of time stamps ts.
+% 
+% s = autofft(___) computes and returns the autospectrum or spectrogram s
+%   of xs. Does not diplay the computed data.
 %
-% [___] = autofft(___, setup) performs the DFT or STFT name-value pair
-%   arguments specified in structure setup.
+% [___] = autofft(___, setup) computes and returns the autospectrum or
+%   spectrogram s of xs using name-value pair arguments specified in a
+%   structure array setup. Does not display the computed data unless
+%   specified in setup.
 %
-% [s, f] = autofft(___) returns the frequencies f at which the DFT or STFT
-%    s is evaluated.
+% [s, f] = autofft(___) also returns the vector of frequencies f at which
+%   the autospectrum or spectrogram are evaluated.
 %
-% [s, f, setup] = autofft(___) returns the setup of the FFT analyser.
+% [s, f, setup] = autofft(___) also returns the setup of the FFT analyser
+%   if s is the autospectrum.
 %
-% [s, f, t, setup] = autofft(___) returns the times t at which the STFT is
-%     evaluated.
+% [s, f, t] = autofft(___) also returns the vector of times t at which the
+%   spectrogram slices are evaluated if s is the spectrogram.
+%
+% [s, f, t, setup] = autofft(___) returns all information available.
 %
 %       
 % Construction of setup:
 %	setup = struct('param', 'value', ...);
 %
-%	List of parameters (all parameters and values are case insensitive):
+% List of valid name-value pair arguments (all parameter names and values
+% are case insensitive):
 %   - 'FFTLength' - [ positive integer {length(xs) or size(xs, 2)} ]
 %     The length of each segment in samples, i.e. number of DFT points.
 %
@@ -58,14 +69,23 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'twosided' - computes centered, two-sided spectrum estimates over
 %       [-maxF, maxF], where maxF is given by 'LowPassFrequency'
 %
-%   - 'HighPassFrequency' - [ {NaN} | real scalar ]
+%   - 'HighPassFrequency' - [ {NaN} | real scalar | cell of vectors [b] and
+%     [a] | filter object ]
 %     Specifies the passband frequency of an elliptic highpass filter.
 %     The filter has a slope -20 dB/dec from the passband frequency.
 %     The exact filtering process depends on the parameter value:
-%     - NaN             - no highpass filtering
+%     - NaN             - no highpass filtering                   {default}
 %     - 0               - DC filtering with the use of detrend function
 %     - positive scalar - DC filtering and subsequent highpass filtering
 %     - negative scalar - highpass filtering without DC filtering
+%     - {[b],[a]}       - [b] and [a] are vectors specifiying the numerator
+%                         and denominator coefficients of a rational 
+%                         transfer function used to filter xs. Internally,
+%                         filter(b,a,xs) is used to filter the input data.                  
+%     - filter object   - Object, used to filter the input data. Since the
+%                         filter validation depends on the DSP toolbox, the
+%                         the object is not validated, which may cause an
+%                         unexpected behaviour.
 %
 %   - 'LowPassFrequency' - [ positive scalar in (0, fs/2) {fs/2} ]
 %     Specifies the maximum frequency in Hz over which autofft computes
@@ -104,7 +124,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'var'               - returns variance of specified spectral unit
 %     - 'none'              - returns the STFT with no spectral averaging
 %
-%   - 'jwWeigthing' - [ 1/jw2 | 1/jw | {1} | jw | jw2 ]
+%   - 'jwWeigthing' - [ '1/jw2' | '1/jw' | {'1'} | 'jw' | 'jw2' ]
 %     Use this parameter to apply a frequency-domain post-weighting to the
 %     output spectra e.g., to estimate displacement from acceleration. 
 %     The parameter can be specified as follows:
@@ -114,7 +134,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'jw'    - single differentiation
 %     - 'jw2'   - double differentiation
 %
-%   - 'SpectralUnit' - [ {pow} | rms | pk | pp | psd | rsd ]
+%   - 'SpectralUnit' - [ {'pow'} | 'rms' | 'pk' | 'pp' | 'psd' | 'rsd' ]
 %     Specifies absolute unit used to compute estimates from:
 %     - 'pow', 'power' - autospectrum (square of rms magnitudes)  {default}
 %     - 'rms'          - linear spectrum with rms magnitude
@@ -123,7 +143,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'psd'          - power spectral density
 %     - 'rsd','rmssd'  - root mean square of power spectral density 
 %
-%   - 'EngineeringUnit' - ! TO DO!
+%   - 'EngineeringUnit' - [ character {'EU'} | string ]
+%     Specifies a unit of measure of xs. This parameter is used to generate
+%     labels for data visualisation.
 %
 %   - 'dbReference' - [ {NaN} | 0 | real positive scalar ]
 %     Specifies the reference value to calculate the decibel scale.
@@ -134,29 +156,17 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %             reference value specified by the user. 
 %
 %   - 'PlotLayout' - [ none | tiled | separated | stacked ]
-%      ! TO DO !
+%      Specifies, which layout is used to visualise results.
+%      - 'none'
 %
 % What's new in v1.5?
-% v1.5.3: !TO DO!
-% v1.5.2: Changed functionality: The package no longer requires the Signal
-%   Processing Toolbox™.
-% v1.5.2: Changed functionality: A first-order Butterworth digital filter
-%   is now used for high-pass filtering rather than a first-order elliptic
-%   filter.
-% v1.5.2: New functions: The package is now distributed with functions that
-%   can construct Blackman-Harris, flat-top, Hamming, Hann, Kaiser and
-%   uniform windows and can design an nth order Butterworth digital filter.
-%   These functions can be found in +utilities directory.
-% v1.5.1: Code optimisation: The STFT is now computed more efficiently.
-% v1.5.1: Bug fix: In same cases, times for the STFT were evaluated more
-%   than once. This has been fixed.
-% New functionality: The output spectra can be returned in decibel scale
-%   using the 'dbReference' parameter.
-% New function: A freqWeight function, which applies frequency weighting
-%   filters to the power spectrum, is now included in the release.
-% Documentation: New example added.
-% Code optimisation: Times at which the STFT is evaluated are computed more
-%   efficiently.
+% v1.5.3: New functionality: The results are now visualised automatically
+%   or manually using 'PlotLayout' and 'EngineeringUnit' parameters.
+% v1.5.3: Changed functionality: 'HighPassFrequency' now also accepts a 
+%   filter object or numerator and denominator coefficients b and a. This
+%   allows users to employ their own filters and store them in setup.
+% v1.5.3: Documentation: Nomenclature have been unified and simplified.
+%
 
 %% Validate number of input and output arguments
 narginchk(2, 3);
@@ -192,7 +202,7 @@ setup = struct("SamplingFrequency",    fs, ...
                "NumberOfAverages",     NaN, ...
                "jwWeigthing",          "none", ...
                "SpectralUnit",         "power", ...
-               "EngineeringUnit",      "", ...
+               "EngineeringUnit",      "EU", ...
                "dbReference",          NaN, ...
                "PlotLayout",           "none");
 setupFields = fieldnames(setup);
@@ -542,7 +552,7 @@ end
 
 %% Display results
 % Compute segment times
-if setup.NumberOfAverages > 1 && setup.Averaging == "none"
+if nargout > 3 || (setup.NumberOfAverages > 1 && setup.Averaging == "none")
     % Compute the relative segment times
     tshift = (setup.FFTLength - setup.OverlapLength) / fs;
     tseg   = (0:tshift:(setup.NumberOfAverages - 1) * tshift).';
