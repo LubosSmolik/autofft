@@ -15,7 +15,7 @@ In such applications, you can use the `autofft` package which mimics the propert
 ### What's new in v1.5?
 - __v1.5.3:__ _New functionality_: The results are now visualised automatically or manually using `'PlotLayout'` and `'EngineeringUnit'` parameters.
 - __v1.5.3:__ _Changed functionality_: `'HighPassFrequency'` parameter now also accepts a filter object or numerator and denominator coefficients `b` and `a`. This feature allows experienced users to use their own filters and store them in the setup structure array.
- __v1.5.3:__ _Documentation_: New example added.
+- __v1.5.3:__ _Documentation_: New example added.
 - __v1.5.3:__ _Documentation_: Nomenclature have been unified and simplified.
 - __v1.5.2:__ _Changed functionality_: The package no longer requires the Signal Processing Toolbox™.
 - __v1.5.2:__ _Changed functionality_: A first-order Butterworth digital filter is now used for high-pass filtering rather than a first-order elliptic filter.
