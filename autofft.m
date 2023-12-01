@@ -157,16 +157,25 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - positive scalar - The output spectrum is expressed in dB with the
 %             reference value specified by the user. 
 %
-%   - 'PlotLayout' - [ none | tiled | separated | stacked ]
+%   - 'PlotLayout' - [ 'none' | 'separated' | 'stacked' | 'tiled' ]
 %      Specifies, which layout is used to visualise results.
-%      - 'none'
+%      - 'none'      - Does not visualise any results. It is a {default}
+%                      option if auttofft is called with no output.
+%      - 'separated' - Visualise each spectrum or spectrogram in a separate
+%                      figure. It is a {default} option if auttofft is
+%                      called with at least one output variable.
+%      - 'stacked'   - Plots spectra into single axes. This value cannot be
+%                      used to visualise spectrograms.
+%      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
+%                      a single figure.
 %
-% What's new in v1.5?
+% What's new in v1.5.3?
 % v1.5.3: New functionality: The results are now visualised automatically
 %   or manually using 'PlotLayout' and 'EngineeringUnit' parameters.
 % v1.5.3: Changed functionality: 'HighPassFrequency' now also accepts a 
 %   filter object or numerator and denominator coefficients b and a. This
 %   allows users to employ their own filters and store them in setup.
+% v1.5.3: Documentation: New example added.
 % v1.5.3: Documentation: Nomenclature have been unified and simplified.
 %
 
