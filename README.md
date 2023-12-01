@@ -3,14 +3,20 @@ The Signal Processing Toolbox™ provides several functions to power spectrum es
 
 In such applications, you can use `autofft` to estimate the discrete Fourier transform (DFT), which mimics the properties of the Brüel & Kjaer FFT analysers. Based on your input, autofft segments signal, applies window functions and performs spectral averaging. The resulting averaged spectrum, also called _modified periodogram_, can be returned in various engineering spectral units, including decibels, magnitude, root mean square (RMS), peak-to-peak and power spectral density (PSD). autofft can also estimate spectral derivation or spectral integral of DFT and perform the short-time Fourier transform (STFT).
 
+In such applications, you can use the `autofft` package which mimics the properties of the Brüel & Kjaer FFT analysers. Based on your input, `autofft` automatically filter signal, separates it into segments, applies window functions and performs spectral averaging. The resulting averaged spectrum, also called _modified periodogram_, can be returned in various engineering spectral units, including decibels, root mean square (RMS) and peak-to-peak magnitudes, and power spectral density (PSD). `autofft` can also estimate spectral derivation or spectral integral of the spectrumm and perform the short-time Fourier transform (STFT).
+
 ### Capabilities of autofft
 - Does not require the Signal Processing Toolbox™.
 - Performs significantly better than `pwelch` and `pspectrum` in computationally intensive problems.
 - Estimates magnitudes of components in your data in engineering units, e.g. dB, V or Pa.
 - Provides control over the setup of the frequency analyser, which is impossible with library functions.
-- Can apply high-pass and frequency weighting filters, spectral derivation or spectral integration.
+- Can apply high-pass and frequency weighting filters per ISO 61672, spectral derivation or spectral integration.
 
 ### What's new in v1.5?
+- __v1.5.3:__ _New functionality_: The results are now visualised automatically or manually using `'PlotLayout'` and `'EngineeringUnit'` parameters.
+- __v1.5.3:__ _Changed functionality_: `'HighPassFrequency'` parameter now also accepts a filter object or numerator and denominator coefficients `b` and `a`. This feature allows experienced users to use their own filters and store them in the setup structure array.
+- __v1.5.3:__ _Documentation_: New example added.
+- __v1.5.3:__ _Documentation_: Nomenclature have been unified and simplified.
 - __v1.5.2:__ _Changed functionality_: The package no longer requires the Signal Processing Toolbox™.
 - __v1.5.2:__ _Changed functionality_: A first-order Butterworth digital filter is now used for high-pass filtering rather than a first-order elliptic filter.
 - __v1.5.2:__ _New functions_: The package is now distributed with functions that can construct Blackman-Harris, flat-top, Hamming, Hann, Kaiser and uniform windows and can design an n-th order Butterworth digital filter. These functions can be found in `+utilities` directory.
@@ -23,4 +29,4 @@ In such applications, you can use `autofft` to estimate the discrete Fourier tra
 
 ### Getting started
 
-For more information read [user manual](https://github.com/CarlistRieekan/autofft/blob/master/user_manual.pdf) or visit  [![View Frequency and time-frequency analysis in Matlab on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/69534-frequency-and-time-frequency-analysis-in-matlab)
+For more information read [user manual](https://github.com/LubosSmolik/autofft/blob/master/user_manual.pdf) or visit  [![View Frequency and time-frequency analysis in Matlab on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/69534-frequency-and-time-frequency-analysis-in-matlab)
