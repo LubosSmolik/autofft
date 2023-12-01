@@ -2,7 +2,7 @@ function autoPlot(setup, s, f, t)
 %AUTOPLOT plots a spectrum or spectra computed by the autofft function.
 %
 % Copyright (c) 2023, Luboš Smolík
-% v1.0.0beta (build 21. 11. 2023)
+% v1.0.0 (build 1. 12. 2023)
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -11,7 +11,7 @@ function autoPlot(setup, s, f, t)
 %
 % autoPlot(setup, s, f) plots a spectrum or spectra stored in s assuming
 %   frequencies stored in a vector f. Visualisation parameters are
-%   determined by PlotLayout and EngineeringUnit fields in a structure 
+%   determined by 'PlotLayout' and 'EngineeringUnit' fields in a structure 
 %   array setup.
 %   
 % autoPlot(setup, s, f, t) plots a spectrogram or spectrograms stored in s
@@ -19,12 +19,35 @@ function autoPlot(setup, s, f, t)
 %   vector t. Visualisation parameters are determined by PlotLayout and
 %   EngineeringUnit fields in a structure array setup.
 %
-% --- TO DO: Detailed explanation of field values ---
+%
+% Construction of setup:
+%	setup = struct('param', 'value', ...);
+%
+% For a detailed list of valid name-value pair arguments for setup, see
+% documentation of autofft. Below are two name-value pair arguments which
+% are important for this function:
+%
+%   - 'EngineeringUnit' - [ character {'EU'} | string ]
+%     Specifies a unit of measure of xs. This parameter is used to generate
+%     labels for data visualisation.
+%
+%   - 'PlotLayout' - [ 'none' | 'separated' | 'stacked' | 'tiled' ]
+%      Specifies, which layout is used to visualise results.
+%      - 'none'      - Does not visualise any results. It is a {default}
+%                      option if auttofft is called with no output.
+%      - 'separated' - Visualise each spectrum or spectrogram in a separate
+%                      figure. It is a {default} option if auttofft is
+%                      called with at least one output variable.
+%      - 'stacked'   - Plots spectra into single axes. This value cannot be
+%                      used to visualise spectrograms.
+%      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
+%                      a single figure.
+%
 
-% Validate number of input arguments
+%% Validate input variables
+%  Validate number of input arguments
 narginchk(3,4)
 
-%% Validate inputs
 % Check if a "EngineeringUnit" field exists and if it is nonempty
 if ~isfield(setup, "EngineeringUnit") || strtrim(setup.EngineeringUnit) == ""
     setup.EngineeringUnit = "EU";
@@ -89,8 +112,7 @@ switch setup.PlotLayout
         % Initialise figure
         fig = figure("Color", "w");
         ax  = axes(fig);
-	    setAxes(ax, unitlab);
-        legend(ax);
+	    setAxes(ax, [f(1), f(end)], unitlab);
 	    
         % Cycle through spectra
         for col = 1:size(s, ndims(s))
@@ -112,19 +134,17 @@ switch setup.PlotLayout
                  ax = nexttile;
 
                 % Plot spectrograms as surfaces or spectra as plots
-		        if setup.Averaging == "none"
-                    setAxes(ax, "Time (s)");
+                if setup.Averaging == "none"
+                    setAxes(ax, [f(1), f(end)], "Time (s)");
                     surface(f, t, squeeze(s(:, :, col)).', ...
                             "DisplayName", "signal " + col, ...
                             "EdgeColor","none", "FaceColor", "interp");
                      cbar = colorbar; 
                     title(cbar, unitlab);
                 else
-                    setAxes(ax, unitlab);
+                    setAxes(ax, [f(1), f(end)], unitlab);
 	                plot(f, s(:, col), "DisplayName", "signal " + col);
                 end
-
-                legend(ax);
             end
             
         % Use subplot if tiledlayout does not exist (R2018b or older)
@@ -144,26 +164,31 @@ switch setup.PlotLayout
                 ax = subplot(rows, cols, col);
 
                 % Plot spectrograms as surfaces or spectra as plots
-		        if setup.Averaging == "none"
-                    setAxes(ax, "Time (s)");
+                if setup.Averaging == "none"
+                    setAxes(ax, [f(1), f(end)], "Time (s)");
                     surface(f, t, squeeze(s(:, :, col)).', ...
                             "DisplayName", "signal " + col, ...
                             "EdgeColor","none", "FaceColor", "interp");
                     cbar = colorbar; 
                     title(cbar, unitlab);
                 else
-                    setAxes(ax, unitlab);
+                    setAxes(ax, [f(1), f(end)], unitlab);
 	                plot(f, s(:, col), "DisplayName", "signal " + col);
                 end
-
-                legend(ax);
             end
         end
 
     % Graphs displayed in separate figures
     case "separated"
+        % Determine dimension for the loop indexing
+        if setup.Averaging == "none"
+            dim = 3;
+        else
+            dim = 2;
+        end
+
         % Cycle through results
-        for col = 1:size(s, ndims(s))
+        for col = 1:size(s, dim)
             % Initialise new figure
             figure("Color", "w");
 
@@ -172,30 +197,28 @@ switch setup.PlotLayout
 		        surface(f, t, squeeze(s(:, :, col)).', ...
                         "DisplayName", "signal " + col, ...
                         "EdgeColor","none", "FaceColor", "interp");
-                setAxes(gca, "Time (s)");
+                setAxes(gca, [f(1), f(end)], "Time (s)");
                 cbar = colorbar; 
                 title(cbar, unitlab);
             else
 	            plot(f, s(:, col), "DisplayName", "signal " + col);
-                setAxes(gca, unitlab);
+                setAxes(gca, [f(1), f(end)], unitlab);
 		    end
-		    
-            % Set axes and show legend
-	        legend(gca);
         end	
 end
 
 %% Local functions
-function setAxes(target, str)
+function setAxes(target, xlims, str)
 % setAxes(target, label) sets properties of axes stored in target and uses
 %   str to label y-axis.
-
     target.Box = "on";
     target.FontName = "Times New Roman";
     target.Layer = "top";
     target.NextPlot = "add";
     target.XLabel.String = "Frequency (Hz)";
     target.YLabel.String = str;
+    target.XLim = xlims;
+    legend(target);
 end
 
 % End of main function
