@@ -1,8 +1,8 @@
 function win = autoFlatTop(n, flag)
-%AUTOHANN Generates a flat top window
+%AUTOFLATTOP Generates a flat top window
 %
-% Copyright (c) 2022, Lubos Smolik, Jan Rendl
-% v1.0.0 (build 19. 7. 2022)  
+% Copyright (c) 2022-2024, Lubos Smolik, Jan Rendl
+% v1.0.1 (build 12. 9. 2024)  
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -15,6 +15,10 @@ function win = autoFlatTop(n, flag)
 % win = autoFlatTop(n,flag) returns an N-point flat top window. The window
 %   can be either symmetric using 'symmetric' flag or periodic using
 %   'periodic' flag.
+
+% CHANGELOG
+% v1.0.1 - Input validation has been improved
+%        - Function description has been corrected
 
 % Validate number of inputs and outputs
 narginchk(1,2);
@@ -30,7 +34,7 @@ end
 if nargin == 1
     flag = 'symmetric';
 else
-    flag = validatestring(flag,{'symmetric','periodic'},'autoFlatTop','flag');
+    flag = validatestring(flag, {'symmetric','periodic'}, '', 'flag', 2);
 end
 
 % Generate the window

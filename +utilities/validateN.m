@@ -1,8 +1,8 @@
 function [nout, win, istrivial] = validateN(nin)
 %VALIDATEN Checks input is integer and generates a trivial window if needed
 %
-% Copyright (c) 2022, Lubos Smolik, Jan Rendl
-% v1.0.0 (build 19. 7. 2022)  
+% Copyright (c) 2022-2024, Lubos Smolik, Jan Rendl
+% v1.0.1 (build 12. 9. 2024)  
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -10,6 +10,10 @@ function [nout, win, istrivial] = validateN(nin)
 %   if necessary. Note that nout is reutrned with the double precision. In
 %   special cases (nin is [], 0, 1) validateN returns a trivial window win
 %   and set istrivial to true.
+
+% CHANGELOG
+% v1.0.1 - Input validation and performance has been improved
+%        - Function description has been corrected
 
 % Check if nin is empty
 if isempty(nin)
@@ -19,7 +23,8 @@ if isempty(nin)
     return;    
 else
     % Validate nin
-    validateattributes(nin,{'numeric'},{'scalar','finite','real','nonnegative'},'validateN','n');
+    validateattributes(nin, 'numeric', {'scalar','real','nonnegative', ...
+                       'finite'}, '', 'nin', 1);
 end
 
 % Check if nin is integer

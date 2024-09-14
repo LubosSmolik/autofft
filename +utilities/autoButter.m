@@ -2,8 +2,8 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 % AUTOBUTTER Butterworth digital filter design
 %
 % Copyright (c) 2014                Jan Simon - original code
-% Copyright (c) 2022                Lubos Smolik - validation, revisions
-% v1.1.1 (build 20. 7. 2022)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2022-2024           Lubos Smolik - validation, revisions
+% v1.1.2 (build 12. 9. 2022)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -36,6 +36,9 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 % [z,p,g] = autoButter(...) returns vectors containing zeros z and poles p,
 %   and scalar g corresponding to the filter gain.
 
+% CHANGELOG
+% v1.1.2 - Input validation has been improved
+
 % Validate number of input arguments and input parameters
 narginchk(2, 4);
 nargoutchk(2, 3);
@@ -56,24 +59,31 @@ if n == 0
 end
 
 % Validate wn and convert to double to enforce precision
-validateattributes(wn,{'numeric'},{'vector','real','positive','finite'},'autoButter','wn');
+validateattributes(wn, 'numeric', {'vector','real','positive','finite'}, ...
+                   '', 'wn', 2);
 wn = double(wn);
 
 switch nargin
-    case 2  % Use a default value for the filter type if not specified
-        if length(wn) == 1
+    case 2
+        % Use a default filter type if ftype is not specified
+        if isscalar(wn)
             varargin{1} = 'low';
         else
             varargin{1} = 'bandpass';
         end
-    case 4 % Validate sample frequency
-        validateattributes(varargin{1},{'numeric'},{'scalar','real','positive','finite'},'autoButter','fs');
+
+    case 4
+        % Validate sample frequency
+        validateattributes(varargin{1}, 'numeric', {'scalar','real', ...
+                           'positive','finite'}, '', 'fs', 3);
+        
         % Compute normalized cutoff frequency wn from fc and fs
         wn = 2 * wn / double(varargin{1});
 end
 
 % Validate filter type - accept also partial strings
-ftype = validatestring(varargin{end},{'low','high','bandpass','stop'},'autoButter','ftype');
+ftype = validatestring(varargin{end}, {'low','high','bandpass','stop'}, ...
+                       '', 'ftype', nargin);
 
 % Show warning if the filter order is too high
 if n > 15
@@ -93,7 +103,7 @@ switch ftype
    case 'stop'
       Sg = 1 / prod(-Q);
       c  = -V(1) * V(2);
-      b  = (V(2) - V(1)) * 0.5 ./ Q;
+      b  = 0.5 .* (V(2) - V(1)) * 0.5 ./ Q;
       d  = sqrt(b .* b + c);
       Sp = [b + d, b - d];
       Sz = sqrt(c) * (-1) .^ (0:2 * nQ - 1);

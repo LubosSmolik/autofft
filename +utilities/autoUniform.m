@@ -1,14 +1,17 @@
 function win = autoUniform(n)
-%AUTOHANN Generates a uniform (rectangular) window
+%AUTOUNIFORM Generates a uniform (rectangular) window
 %
-% Copyright (c) 2022, Lubos Smolik, Jan Rendl
-% v1.0.0 (build 19. 7. 2022)  
+% Copyright (c) 2022-2024, Lubos Smolik, Jan Rendl
+% v1.0.1 (build 12. 9. 2024)  
 %
 % This code is published under BSD-3-Clause License.
 %
 % win = autoUniform(n)
 %
 % win = autoUniform(n) returns an N-point uniform window in a column vector.
+
+% CHANGELOG
+% v1.0.1 - Function description has been corrected
 
 % Validate number of inputs and outputs
 narginchk(1,1);

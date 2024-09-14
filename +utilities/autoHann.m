@@ -1,8 +1,8 @@
 function win = autoHann(n, flag)
 %AUTOHANN Generates a Hann window
 %
-% Copyright (c) 2022, Lubos Smolik, Jan Rendl
-% v1.0.0 (build 19. 7. 2022)  
+% Copyright (c) 2022-2024, Lubos Smolik, Jan Rendl
+% v1.0.1 (build 12. 9. 2024)  
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -15,6 +15,9 @@ function win = autoHann(n, flag)
 % win = autoHann(n,flag) returns an N-point Hann window. The window can
 %   be either symmetric using 'symmetric' flag or periodic using 'periodic'
 %   flag.
+
+% CHANGELOG
+% v1.0.1 - Input validation has been improved
 
 % Validate number of inputs and outputs
 narginchk(1,2);
@@ -30,7 +33,7 @@ end
 if nargin == 1
     flag = 'symmetric';
 else
-    flag = validatestring(flag,{'symmetric','periodic'},'autoHann','flag');
+    flag = validatestring(flag, {'symmetric','periodic'}, '', 'flag', 2);
 end
 
 % Generate the window
