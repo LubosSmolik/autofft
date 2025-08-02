@@ -1,8 +1,8 @@
 function [ws, setup] = freqWeight(s, f, wType, setup)
 % FREQWEIGHT Applies frequency weighting filter to the input power spectrum
 %
-% Copyright (c) 2022-2025           Lubos Smolik, University of West Bohemia
-% v1.0.1 (build 2. 8. 2025)         e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2022-2025          Lubos Smolik, University of West Bohemia
+% v1.0.1 (build 2. 8. 2025)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -44,7 +44,7 @@ function [ws, setup] = freqWeight(s, f, wType, setup)
 
 % CHANGELOG
 % v1.0.1 - Terminology complies with ISO 21727:2016 and IEC 61672-1:2013.
-%        - Weighting functions now complies with IEC 61672-1:2013.
+%        - Minor CPU-time optimisation.
 
 %% Validate input arguments
 narginchk(3, 4);
@@ -61,10 +61,10 @@ else
 end
 
 % Compute offset value
-off = 20 * log10(weighting(fref, wType));   
+off = 20 .* log10(weighting(fref, wType));   
 
 % Compute array of weights (in dB)
-w   = 20 * log10(weighting(f, wType)) - off;
+w   = 20 .* log10(weighting(f, wType)) - off;
 w   = repmat(w(:), size(s, 2), size(s, 3));
 
 % Apply the weights
@@ -98,7 +98,7 @@ function wSpec = weighting(f, weightType)
             den   = [20.6, 107.7, 737.9, 12194].^2;
 
             % Compute weighting function
-            wSpec = (den(4) * f.^4) ./ ((f.^2 + den(1)) .* sqrt((f.^2 + den(2)) .* (f.^2 + den(3))) .* (f.^2 + den(4)));
+            wSpec = (den(4) .* f.^4) ./ ((f.^2 + den(1)) .* sqrt((f.^2 + den(2)) .* (f.^2 + den(3))) .* (f.^2 + den(4)));
 
         case "b"
             % B-type frequency weighting per IEC 60651:1979 (withdrawn)
@@ -106,7 +106,7 @@ function wSpec = weighting(f, weightType)
             den   = [20.6, 158.5, 12194].^2;
             
             % Compute weighting function
-            wSpec = (den(3) * f.^3) ./ ((f.^2 + den(1)) .* sqrt((f.^2 + den(2))) .* (f.^2 + den(3)));
+            wSpec = (den(3) .* f.^3) ./ ((f.^2 + den(1)) .* sqrt((f.^2 + den(2))) .* (f.^2 + den(3)));
 
         case "c"
             % C-type frequency weighting per IEC 61672-1:2013
@@ -114,7 +114,7 @@ function wSpec = weighting(f, weightType)
             den   = [20.6, 12194].^2;
 
             % Compute weighting function
-            wSpec = (den(2) * f.^2) ./ ((f.^2 + den(1)) .* (f.^2 + den(2)));
+            wSpec = (den(2) .* f.^2) ./ ((f.^2 + den(1)) .* (f.^2 + den(2)));
 
         case "d"
             % D-type frequency weighting per IEC 60651:1979 (withdrawn)
@@ -123,10 +123,10 @@ function wSpec = weighting(f, weightType)
             den = [6.8966888496476e-5, 79919.29, 1345600];
             
             % Auxiliary response function
-            hf  = ((cfs(1) - f.^2).^2 + cfs(2) * f.^2) ./ ((cfs(3) - f.^2).^2 + cfs(4) * f.^2);
+            hf  = ((cfs(1) - f.^2).^2 + cfs(2) .* f.^2) ./ ((cfs(3) - f.^2).^2 + cfs(4) .* f.^2);
 
             % Compute weighting function
-            wSpec = (f / den(1)) .* sqrt(hf ./ ((f.^2 + den(2)) .* (f.^2 + den(3))));
+            wSpec = (f ./ den(1)) .* sqrt(hf ./ ((f.^2 + den(2)) .* (f.^2 + den(3))));
 
         case "m"
             % M-type frequency weighting per ISO 21727:2016
@@ -135,11 +135,11 @@ function wSpec = weighting(f, weightType)
             cfs2 = [ 1.306612257412824e-19, -2.118150887518656e-11,  5.559488023498642e-4];
 
             % Auxiliary response functions
-            h1f  = cfs1(1) * f.^6 + cfs1(2) * f.^4 + cfs1(3) * f.^2 + 1;
-            h2f  = cfs2(1) * f.^5 + cfs2(2) * f.^3 + cfs2(3) * f;
+            h1f  = cfs1(1) .* f.^6 + cfs1(2) .* f.^4 + cfs1(3) .* f.^2 + 1;
+            h2f  = cfs2(1) .* f.^5 + cfs2(2) .* f.^3 + cfs2(3) .* f;
             
             % Compute weighting function
-            wSpec = (1.246332637532143e-4 * f) ./ sqrt(h1f.^2  + h2f.^2);
+            wSpec = (1.246332637532143e-4 .* f) ./ sqrt(h1f.^2  + h2f.^2);
 
         otherwise
             % Z-type frequency weighting per IEC 61672-1:2013
