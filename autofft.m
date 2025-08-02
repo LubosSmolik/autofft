@@ -184,14 +184,16 @@ narginchk(2, 3);
 nargoutchk(0, 4);
 
 %% Convert row vectors to column vectors if needed
-if size(xs, 1) == 1     % Samples
+if size(xs, 1) == 1
     xs = xs(:);
 end
 
-if length(ts) == 1      % User-specified sampling frequency 
+if isscalar(ts)
+    % User-specified sampling frequency 
     fs = ts;
-    ts = 0.5/fs;
-else                    % Compute sampling frequency from time stamps
+    ts = 0.5 / fs;
+else
+    % Compute sampling frequency from time stamps
     fs = (length(ts) - 1) / (ts(end) - ts(1)); 
 end
 
@@ -296,17 +298,17 @@ switch lower(setup.Mode)
         setup.Mode = "twosided";
 
         % Vector of indices for manipulation with the DFT
-        sc  = 1;                            % Scaling constant
-        st  = (size(freq, 1) - 1) / 2 + 1;  % Index of the static component
-        ind = [setup.FFTLength - st + 2:setup.FFTLength, 1:st].';
+        conSc = 1;                            % Scaling constant
+        indSt = (size(freq, 1) - 1) / 2 + 1;  % Index of the static component
+        ind   = [setup.FFTLength - indSt + 2:setup.FFTLength, 1:indSt].';
     otherwise       % One-sided spectrum 
         freq = (0:setup.FrequencyResolution:setup.LowPassFrequency).';
         setup.Mode = "onesided";
 
         % Vector of indices for manipulation with the DFT
-        sc  = 2;                            % Scaling constant
-        st  = 1;                            % Index of the static component
-        ind = (1:size(freq, 1)).';
+        conSc = 2;                            % Scaling constant
+        indSt = 1;                            % Index of the static component
+        ind   = (1:size(freq, 1)).';
 end
 
 % Calculate number of overlaping samples
@@ -342,14 +344,16 @@ if isnumeric(setup.Window)
     % Interpolate missing values in the window function if necessary
     if  size(setup.Window, 1) ~= setup.FFTLength
         % Use the modified Akima interpolation (Matlab v2019b or newer)
-        try   
-            setup.Window = makima(linspace(0, 1, size(setup.Window, 1)), ...
-                             setup.Window, linspace(0,1,setup.FFTLength).');
+        try
+            setup.Window = makima(0:1/(size(setup.Window, 1)-1):1, ...
+                                  setup.Window, (0:1/(setup.FFTLength-1):1).');
         % Use the spline interpolation (Matlab v2019a or older)
         catch 
-            setup.Window = spline(linspace(0, 1, size(setup.Window, 1)), ...
-                             setup.Window, linspace(0,1,setup.FFTLength).');
+            setup.Window = spline(0:1/(size(setup.Window, 1)-1):1, ...
+                                  setup.Window, (0:1/(setup.FFTLength-1):1).');
         end
+
+        % Throw warning
         warning("The window function has been interpolated to " + ...
                 num2str(setup.FFTLength, "%d") + " samples.");
     end
@@ -391,11 +395,12 @@ else
 end
 
 % Normalise the window function for correct magnitude estimation
-setup.Window = setup.Window ./ mean(setup.Window);
+winMean = sum(setup.Window) / setup.FFTLength;
+setup.Window = setup.Window ./ winMean;
 
 % Calculate the noise power bandwidth of the window function in Hz
 % exploiting the fact that mean(setup.Window) == 1
-setup.WindowNoiseBandwidth = fs * mean(setup.Window.^2) / setup.FFTLength;
+setup.WindowNoiseBandwidth = fs * sum(setup.Window.^2) / setup.FFTLength.^2;
 
 %% Filtering
 if ~isnan(setup.HighPassFrequency)
@@ -472,21 +477,26 @@ tSpectrum = fft(tSegments, [], 1);
 % Application of the jw weigthing and computation of unscaled magnitudes
 switch lower(setup.jwWeigthing)
     case {"1/jw2", "double integration"}
-        tSpectrum(ind,:,:) = abs((-1 ./ (4 * pi^2 * freq.^2)) .* ...
+        jwCon = -4 * pi^2;
+        tSpectrum(ind,:,:) = abs((1 ./ (jwCon .* freq.^2)) .* ...
                                  tSpectrum(ind,:,:));
         setup.jwWeigthing  = "double integration";
     case {"1/jw", "single integration"}
-        tSpectrum(ind,:,:) = abs((1 ./ (2i * pi * freq)) .* ...
+        jwCon = 2i * pi;
+        tSpectrum(ind,:,:) = abs((1 ./ (jwCon .* freq)) .* ...
                                  tSpectrum(ind,:,:));
         setup.jwWeigthing  = "single integration";
     case {"jw", "single differentiation"}
-        tSpectrum(ind,:,:) = abs(2i * pi * freq .* tSpectrum(ind,:,:));
+        jwCon = 2i * pi;
+        tSpectrum(ind,:,:) = abs(jwCon .* freq .* tSpectrum(ind,:,:));
         setup.jwWeigthing  = "single differentiation";
     case {"jw2", "double differentiation"}
-        tSpectrum(ind,:,:) = abs(-4 * pi^2 * freq.^2 .* tSpectrum(ind,:,:));
+        jwCon = -4 * pi^2;
+        tSpectrum(ind,:,:) = abs(jwCon .* freq.^2 .* tSpectrum(ind,:,:));
         setup.jwWeigthing  = "double differentiation"; 
     otherwise
         tSpectrum(ind,:,:) = abs(tSpectrum(ind,:,:));
+        setup.jwWeigthing  = "none";
 end
 
 % Spectral averaging and the limitation of the maximum frequency
@@ -516,32 +526,32 @@ end
 % Evaluation of spectral unit
 switch lower(setup.SpectralUnit)
     case "rms"                          % RMS magnitude
-        spectrum(st,:)        = spectrum(st,:) / setup.FFTLength;
-        spectrum(1:end~=st,:) = (sc/sqrt(2)) * spectrum(1:end~=st,:) / setup.FFTLength;
+        spectrum(indSt,:)        = spectrum(indSt,:) / setup.FFTLength;
+        spectrum(1:end~=indSt,:) = (conSc/sqrt(2)) * spectrum(1:end~=indSt,:) / setup.FFTLength;
         setup.SpectralUnit    = "RMS";
     case {"pk", "0-pk", "peak"}         % 0-peak magnitude
-        spectrum(st,:)      = spectrum(st,:) / setup.FFTLength;
-        spectrum(1:end~=st,:)  = sc * spectrum(1:end~=st,:) / setup.FFTLength;
+        spectrum(indSt,:)      = spectrum(indSt,:) / setup.FFTLength;
+        spectrum(1:end~=indSt,:)  = conSc * spectrum(1:end~=indSt,:) / setup.FFTLength;
         setup.SpectralUnit = "0-pk";
     case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
-        spectrum(st,:)      = spectrum(st,:) / setup.FFTLength;
-        spectrum(1:end~=st,:) = 2 * sc * spectrum(1:end~=st,:) / setup.FFTLength;
+        spectrum(indSt,:)      = spectrum(indSt,:) / setup.FFTLength;
+        spectrum(1:end~=indSt,:) = 2 * conSc * spectrum(1:end~=indSt,:) / setup.FFTLength;
         setup.SpectralUnit = "pk-pk";
     case {"asd", "psd"}                 % Power spectral density
-        spectrum(st,:)      = (spectrum(st,:) / setup.FFTLength).^2 / ...
+        spectrum(indSt,:)      = (spectrum(indSt,:) / setup.FFTLength).^2 / ...
                              setup.WindowNoiseBandwidth;
-        spectrum(1:end~=st,:)  = sc * (spectrum(1:end~=st,:) / setup.FFTLength).^2 / ...
+        spectrum(1:end~=indSt,:)  = conSc * (spectrum(1:end~=indSt,:) / setup.FFTLength).^2 / ...
                              setup.WindowNoiseBandwidth;
         setup.SpectralUnit = "PSD";
     case {"rsd", "rmssd"}               % Root mean square spectral density
-        spectrum(st,:)        = spectrum(st,:) / ...
+        spectrum(indSt,:)        = spectrum(indSt,:) / ...
                             (setup.WindowNoiseBandwidth * setup.FFTLength);
-        spectrum(1:end~=st,:) = (sc/sqrt(2)) * spectrum(1:end~=st,:) / ...
+        spectrum(1:end~=indSt,:) = (conSc/sqrt(2)) * spectrum(1:end~=indSt,:) / ...
                             (setup.WindowNoiseBandwidth * setup.FFTLength);
         setup.SpectralUnit = "RMSSD";
     otherwise                           % Autospectrum / power spectrum
-        spectrum(st,:)        = (spectrum(st,:) / setup.FFTLength).^2;
-        spectrum(1:end~=st,:) = sc * (spectrum(1:end~=st,:) / setup.FFTLength).^2;
+        spectrum(indSt,:)        = (spectrum(indSt,:) / setup.FFTLength).^2;
+        spectrum(1:end~=indSt,:) = conSc * (spectrum(1:end~=indSt,:) / setup.FFTLength).^2;
         setup.SpectralUnit = "power";
 end
 
@@ -577,7 +587,7 @@ if nargout > 3 || (setup.NumberOfAverages > 1 && setup.Averaging == "none")
     tseg   = (0:tshift:(setup.NumberOfAverages - 1) * tshift).';
 
     % Compute the absolute segment times        
-    tseg = mean(setup.Window .* (0:setup.FFTLength-1).') / fs + ts(1) + tseg;
+    tseg = sum(setup.Window .* (0:setup.FFTLength-1).') / (setup.FFTLength * fs) + ts(1) + tseg;
 end
 
 % Display results
