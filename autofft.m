@@ -418,30 +418,38 @@ if ~isnan(setup.HighPassFrequency)
             xs = filter(b, a, xs);
         end
 
-    % setup.HighPassFrequency is a cell array containing vectors b and a
-    % (i.e. {[b], [a]} that define numerator and denominator coefficients
-    % of a rational transfer function
-    elseif iscell(setup.HighPassFrequency) && all(cellfun(@isnumeric,c))
-        % Filter xs
-        xs = filter(setup.HighPassFrequency{1}(:), ...
-                    setup.HighPassFrequency{2}(:), xs);
-
-    % Try to apply object stored in setup.HighPassFrequency to xs
-    % Note: This is a crude solution, but Matlab can recognise filters only
-    %   if the DSP Toolbox is installed. This toolbox contains isfir and
-    %   issos functions which can be used.
+    % setup.HighPassFrequency is not a single number
     else
         try
-            % Filter xs
-            temp = filter(setup.HighPassFrequency, xs);
+            numerator and denominator coefficients b and a
+            % Try to filter xs
+            if iscell(setup.HighPassFrequency) && all(cellfun(@isnumeric,c))
+                % setup.HighPassFrequency is a cell array consisting of
+                % vectors b and a (i.e. {[b], [a]}). Vectors b and a
+                % contain numerator and denominator coefficients of a
+                % rational transfer function
+                temp = filter(setup.HighPassFrequency{1}(:), ...
+                              setup.HighPassFrequency{2}(:), xs);
+            else
+                % Try to apply object stored in setup.HighPassFrequency
+                % Note: This is a crude solution, but Matlab can recognise
+                %   filters only if the DSP Toolbox is installed using e.g.
+                %   isfir and issos functions
+                temp = filter(setup.HighPassFrequency, xs);
+            end
 
             % Validate size of the filtered output
                 if all(size(xs) == size(temp))
                     xs = temp;
+                else
+                    warning("Filtered data has unexpected size." + newline + ...
+                            "Frequency analysis will be performed on unfiltered data.");
                 end
-        catch
-            warning("The user filter has returned unexpected results.")
-            warning("Frequency analysis will be performed on unfiltered data.")
+        catch ME
+            % Throw warning if the filtering fails
+            warning(ME.identifier, "Filtering failed with error: %s" + newline + ...
+                    "Frequency analysis will be performed on unfiltered data.", ...
+                    ME.message);
         end
     end
 end
