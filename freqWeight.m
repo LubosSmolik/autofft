@@ -44,7 +44,7 @@ function [ws, setup] = freqWeight(s, f, wType, setup)
 
 % CHANGELOG
 % v1.0.1 - Terminology complies with ISO 21727:2016 and IEC 61672-1:2013.
-%        - Minor CPU-time optimisation.
+%        - Minor performance optimisation.
 
 %% Validate input arguments
 narginchk(3, 4);
