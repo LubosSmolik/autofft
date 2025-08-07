@@ -45,9 +45,12 @@ function autoPlot(setup, s, f, t)
 %
 
 % CHANGELOG
-% v1.0.1 - Fixed figure background color in Matlab R2025a dark mode.
+% v1.0.1 - Fixed bug when the tiled layout was selected by the user for
+%          time-frequency analysis results from only one channel.
+%        - Fixed figure background color in Matlab R2025a dark mode.
+%        - Minor code refactoring.
 
-%% Validate input variables
+%% Validate input arguments
 %  Validate number of input arguments
 narginchk(3,4)
 
@@ -82,44 +85,52 @@ end
 
 %% Determine spectral unit and set y-axis label
 if isnan(setup.dbReference)
-    dblab = "";
+    labdb = "";
 else
-    dblab = " dB/" + num2str(setup.dbReference, "%.2e");
+    labdb = " dB/" + num2str(setup.dbReference, "%.2e");
 end
 
 switch lower(setup.SpectralUnit)
     case "rms"                          % RMS magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+        labunit = "Autospectrum" + labdb + " (" + setup.EngineeringUnit ...
                    + ", RMS)";
     case {"pk", "0-pk", "peak"}         % 0-peak magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+        labunit = "Autospectrum" + labdb + " (" + setup.EngineeringUnit ...
                    + ", 0-Pk)";
     case {"pp", "pk-pk", "peak2peak"}   % Peak-peak magnitude
-        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+        labunit = "Autospectrum" + labdb + " (" + setup.EngineeringUnit ...
                    + ", Pk-Pk)";
     case {"asd", "psd"}                 % Power spectral density
-        unitlab = "Power Spectral Density" + dblab + " (" ...
+        labunit = "Power Spectral Density" + labdb + " (" ...
                    + setup.EngineeringUnit + ")^2 / Hz";
     case {"rsd", "rmssd"}               % Root mean square spectral density
-        unitlab = "Power Spectral Density" + dblab + " (" ...
+        labunit = "Power Spectral Density" + labdb + " (" ...
                    + setup.EngineeringUnit + ") / (Hz^1/2)";
     otherwise                           % Autospectrum / power spectrum
-        unitlab = "Autospectrum" + dblab + " (" + setup.EngineeringUnit ...
+        labunit = "Autospectrum" + labdb + " (" + setup.EngineeringUnit ...
                    + ")^2";
 end
 
 %% Plot data
+% Determine which dimension correspond to the channel
+if setup.Averaging == "none"
+    nchannel = 3;
+else
+    nchannel = 2;
+end
+
+% Prepare layout and plot data
 switch setup.PlotLayout
     % Plots stacked in one axes
     case "stacked"
         % Initialise figure
         fig = figure;
         ax  = axes(fig);
-	    setAxes(ax, [f(1), f(end)], unitlab);
+	    setAxes(ax, [f(1), f(end)], labunit);
 	    
-        % Cycle through spectra
-        for col = 1:size(s, ndims(s))
-            plot(ax, f, s(:, col), "DisplayName", "signal " + col);
+        % Cycle through channels
+        for ch = 1:size(s, nchannel)
+            plot(ax, f, s(:, ch), "DisplayName", "signal " + ch);
         end
 
     % Graphs tiled in one figure
@@ -127,85 +138,67 @@ switch setup.PlotLayout
         % Initialise figure
         fig = figure;
 
-        % Try to use a tiled layout (R2019a or newer)
+        % Try to use a tiled layout 
         try
+            % Use tiledlayout (R2019a or newer)
             tiledlayout(fig, "flow")
-
-            % Cycle through results
-            for col = 1:size(s, ndims(s))
-                % Initialise new tile
-                 ax = nexttile;
-
-                % Plot spectrograms as surfaces or spectra as plots
-                if setup.Averaging == "none"
-                    setAxes(ax, [f(1), f(end)], "Time (s)");
-                    surface(f, t, squeeze(s(:, :, col)).', ...
-                            "DisplayName", "signal " + col, ...
-                            "EdgeColor","none", "FaceColor", "interp");
-                     cbar = colorbar; 
-                    title(cbar, unitlab);
-                else
-                    setAxes(ax, [f(1), f(end)], unitlab);
-	                plot(f, s(:, col), "DisplayName", "signal " + col);
-                end
-            end
-            
-        % Use subplot if tiledlayout does not exist (R2018b or older)
+            tiledlayoutexists = true;
         catch
+            % Use subplot if tiledlayout does not exist (R2018b or older)
+            tiledlayoutexists = false;
+
             % Determine the number of tile rows and columns
             rows = 1;
-            cols = size(s, ndims(s));
+            cols = size(s, nchannel);
 
             while rows < cols
                 rows = rows + 1;
-                cols = ceil(size(s, ndims(s)) / rows);
+                cols = ceil(size(s, nchannel) / rows);
             end
+        end
 
-            % Cycle through results
-            for col = 1:size(s, ndims(s))
-                % Initialise new subplot
-                ax = subplot(rows, cols, col);
-
-                % Plot spectrograms as surfaces or spectra as plots
-                if setup.Averaging == "none"
-                    setAxes(ax, [f(1), f(end)], "Time (s)");
-                    surface(f, t, squeeze(s(:, :, col)).', ...
-                            "DisplayName", "signal " + col, ...
-                            "EdgeColor","none", "FaceColor", "interp");
-                    cbar = colorbar; 
-                    title(cbar, unitlab);
-                else
-                    setAxes(ax, [f(1), f(end)], unitlab);
-	                plot(f, s(:, col), "DisplayName", "signal " + col);
-                end
+        % Cycle through channels
+        for ch = 1:size(s, nchannel)
+            % Initialise new tile or subplot
+            if tiledlayoutexists == true
+                ax = nexttile;
+            else
+                ax = subplot(rows, cols, ch);
+            end
+            
+            % Plot spectrograms as surfaces or spectra as plots
+            if setup.Averaging == "none"
+                setAxes(ax, [f(1), f(end)], "Time (s)");
+                surface(f, t, squeeze(s(:, :, ch)).', ...
+                        "DisplayName", "signal " + ch, ...
+                        "EdgeColor","none", "FaceColor", "interp");
+                cbar = colorbar; 
+                title(cbar, labunit);
+            else
+                setAxes(ax, [f(1), f(end)], labunit);
+                plot(f, s(:, ch), "DisplayName", "signal " + ch);
             end
         end
 
     % Graphs displayed in separate figures
     case "separated"
-        % Determine dimension for the loop indexing
-        if setup.Averaging == "none"
-            dim = 3;
-        else
-            dim = 2;
-        end
-
-        % Cycle through results
-        for col = 1:size(s, dim)
+        % Cycle through channels
+        for ch = 1:size(s, nchannel)
             % Initialise new figure
-            figure;
+            fig = figure;
+            ax = axes(fig);
 
             % Plot spectrograms as surfaces or spectra as plots
 		    if setup.Averaging == "none"
-		        surface(f, t, squeeze(s(:, :, col)).', ...
-                        "DisplayName", "signal " + col, ...
+		        surface(ax, f, t, squeeze(s(:, :, ch)).', ...
+                        "DisplayName", "signal " + ch, ...
                         "EdgeColor","none", "FaceColor", "interp");
-                setAxes(gca, [f(1), f(end)], "Time (s)");
+                setAxes(ax, [f(1), f(end)], "Time (s)");
                 cbar = colorbar; 
-                title(cbar, unitlab);
+                title(cbar, labunit);
             else
-	            plot(f, s(:, col), "DisplayName", "signal " + col);
-                setAxes(gca, [f(1), f(end)], unitlab);
+	            plot(ax, f, s(:, ch), "DisplayName", "signal " + ch);
+                setAxes(ax, [f(1), f(end)], labunit);
 		    end
         end	
 end
