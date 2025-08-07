@@ -10,9 +10,12 @@ In such applications, you can use the `autofft` package which mimics the propert
 - Performs significantly better than `pwelch` and `pspectrum` in computationally intensive problems.
 - Estimates magnitudes of components in your data in engineering units, e.g. dB, V or Pa.
 - Provides control over the setup of the frequency analyser, which is impossible with library functions.
-- Can apply high-pass and frequency weighting filters per ISO 61672, spectral derivation or spectral integration.
+- Can apply high-pass and frequency weighting filters per IEC 61672-1:2013, spectral derivation or spectral integration.
 
 ### What's new in v1.5?
+- __v1.5.4:__ _Bug fix_: Plotting error when the user selected tiled layout for time-frequency analysis results from only one channel has been fixed.
+- __v1.5.4:__ _Code optimisation_: Evaluation of spectral unit optimised. Minor code optimisations and refactoring reduced CPU time by 1-2 %.
+- __v1.5.4:__ _Code optimisation_: Error handling during filtering has been improved.
 - __v1.5.3:__ _New functionality_: The results are now visualised automatically or manually using `'PlotLayout'` and `'EngineeringUnit'` parameters.
 - __v1.5.3:__ _Changed functionality_: `'HighPassFrequency'` parameter now also accepts a filter object or numerator and denominator coefficients `b` and `a`. This feature allows experienced users to use their own filters and store them in the setup structure array.
 - __v1.5.3:__ _Documentation_: New example added.
