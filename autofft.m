@@ -169,18 +169,13 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
 %                      a single figure.
 %
-% What's new in v1.5.3?
+% What's new in v1.5.4?
+% v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
+%    time-frequency analysis results from only one channel has been fixed.
+% v1.5.4: Code optimisation: Evaluation of spectral unit optimised. Minor 
+%   code optimisations and refactoring reduced CPU time by 1-2 %.
 % v1.5.4: Code optimisation: Error handling during filtering has been
 %   improved.
-% v1.5.4: Code optimisation: Error handling during filtering has been
-%   improved.
-% v1.5.3: New functionality: The results are now visualised automatically
-%   or manually using 'PlotLayout' and 'EngineeringUnit' parameters.
-% v1.5.3: Changed functionality: 'HighPassFrequency' now also accepts a 
-%   filter object or numerator and denominator coefficients b and a. This
-%   allows users to employ their own filters and store them in setup.
-% v1.5.3: Documentation: New example added.
-% v1.5.3: Documentation: Nomenclature have been unified and simplified.
 %
 
 %% Validate number of input and output arguments
@@ -464,7 +459,7 @@ if ~isnan(setup.HighPassFrequency)
 end
 
 %% FFT
-% Preallocate an array for the DFT of individual segments
+% Preallocate an array for the FFT of individual segments
 tSegments = zeros(setup.FFTLength, setup.NumberOfAverages, size(xs, 2));
 
 % Apply time weighting using partial vectorisation
