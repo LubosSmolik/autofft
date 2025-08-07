@@ -1,8 +1,8 @@
 function autoPlot(setup, s, f, t)
 %AUTOPLOT plots a spectrum or spectra computed by the autofft function.
 %
-% Copyright (c) 2023, Luboš Smolík
-% v1.0.0 (build 1. 12. 2023)
+% Copyright (c) 2023-2025, Luboš Smolík
+% v1.0.1 (build 7. 8. 2025)
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -43,6 +43,9 @@ function autoPlot(setup, s, f, t)
 %      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
 %                      a single figure.
 %
+
+% CHANGELOG
+% v1.0.1 - Fixed figure background color in Matlab R2025a dark mode.
 
 %% Validate input variables
 %  Validate number of input arguments
@@ -110,7 +113,7 @@ switch setup.PlotLayout
     % Plots stacked in one axes
     case "stacked"
         % Initialise figure
-        fig = figure("Color", "w");
+        fig = figure;
         ax  = axes(fig);
 	    setAxes(ax, [f(1), f(end)], unitlab);
 	    
@@ -122,7 +125,7 @@ switch setup.PlotLayout
     % Graphs tiled in one figure
     case "tiled"
         % Initialise figure
-        fig = figure("color", "w");
+        fig = figure;
 
         % Try to use a tiled layout (R2019a or newer)
         try
@@ -190,7 +193,7 @@ switch setup.PlotLayout
         % Cycle through results
         for col = 1:size(s, dim)
             % Initialise new figure
-            figure("Color", "w");
+            figure;
 
             % Plot spectrograms as surfaces or spectra as plots
 		    if setup.Averaging == "none"
