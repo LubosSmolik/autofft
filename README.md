@@ -22,7 +22,7 @@ The `autofft` package is designed to address these needs by mimicking the operat
 - __v1.5.4:__ _Bug fix_: Plotting error when the user selected tiled layout for time-frequency analysis results from only one channel has been fixed.
 - __v1.5.4:__ _Code optimisation_: Code optimisation: Evaluation of magnitude and spectral unit optimised. Other minor optimisations implemented and code refactored. Implemented changes reduced CPU time by up to 35 %.
 - __v1.5.4:__ _Code optimisation_: Error handling during filtering has been improved.
-- __v1.5.4:__ _v1.5.4_: Documentation: Introduction has been revised.
+- __v1.5.4:__ _Documentation_: Introduction has been revised.
 
 ### Getting started
 
