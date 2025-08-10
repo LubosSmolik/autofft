@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 % Copyright (c) 2017-2025              Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.4 (build 7. 8. 2025)            e-mail: carlist{at}ntis.zcu.cz
+% v1.5.4 (build 10. 8. 2025)           e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -172,8 +172,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % What's new in v1.5.4?
 % v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
 %    time-frequency analysis results from only one channel has been fixed.
-% v1.5.4: Code optimisation: Evaluation of spectral unit optimised. Minor 
-%   code optimisations and refactoring reduced CPU time by 1-2 %.
+% v1.5.4: v1.5.4: Code optimisation: Evaluation of magnitude and spectral
+%    unit optimised. Other minor optimisations implemented and code
+%    refactored. Implemented changes reduced CPU time by up to 35 %.
 % v1.5.4: Code optimisation: Error handling during filtering has been
 %   improved.
 %
@@ -475,69 +476,71 @@ switch lower(setup.jwWeigthing)
     case {"1/jw2", "double integration"}
         % Apply double integration
         conjw = -4 * pi^2;
-        tSpectrum(ind,:,:) = (1 ./ (conjw .* freq.^2)) .* tSpectrum(ind,:,:);
+        tSpectrum = (1 ./ (conjw .* freq.^2)) .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "double integration";      % Update setup
 
     case {"1/jw", "single integration"}
         % Apply single integration
         conjw = 2i * pi;
-        tSpectrum(ind,:,:) = (1 ./ (conjw .* freq)) .* tSpectrum(ind,:,:);
+        tSpectrum = (1 ./ (conjw .* freq)) .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "single integration";      % Update setup
 
     case {"jw", "single differentiation"}
         % Apply single differentiation
         conjw = 2i * pi;
-        tSpectrum(ind,:,:) = conjw .* freq .* tSpectrum(ind,:,:);
-        setup.jwWeigthing  = "single differentiation"; % Update setup
+        tSpectrum = conjw .* freq .* tSpectrum(ind,:,:);
+        setup.jwWeigthing  = "single differentiation";  % Update setup
 
     case {"jw2", "double differentiation"}
         % Apply double differentiation
         conjw = -4 * pi^2;
-        tSpectrum(ind,:,:) = conjw .* freq.^2 .* tSpectrum(ind,:,:);
-        setup.jwWeigthing  = "double differentiation"; % Update setup
+        tSpectrum = conjw .* freq.^2 .* tSpectrum(ind,:,:);
+        setup.jwWeigthing  = "double differentiation";  % Update setup
 
     otherwise
-        % Update setup
-        setup.jwWeigthing  = "none";
+        % Reduce the number of elements to speed up next two steps
+        tSpectrum = tSpectrum(ind,:,:);
+        setup.jwWeigthing  = "none";                    % Update setup
 end
 
 % Compute unscaled magnitude up to the maximum frequency
-tSpectrum(ind,:,:) = sqrt(real(tSpectrum(ind,:,:)).^2 + imag(tSpectrum(ind,:,:)).^2);
+% Exploit the fact that the direct implementation is faster than abs()
+tSpectrum = sqrt(real(tSpectrum).^2 + imag(tSpectrum).^2);
 
 % Spectral averaging and the limitation of the maximum frequency
 switch lower(setup.Averaging)
     case {"energy", "rms"}
         % Perform energy averaging
-        spectrum = rms(tSpectrum(ind,:,:), 2);
+        spectrum = rms(tSpectrum, 2);
         setup.Averaging = "energy";     % Update setup
 
     case {"maximum", "max", "pk", "peak"}
         % Permorm maximum-hold averaging
-        spectrum = max(tSpectrum(ind,:,:), [], 2);
+        spectrum = max(tSpectrum, [], 2);
         setup.Averaging = "maximum";    % Update setup
 
     case {"median", "med"}
         % Perform median-hold averaging
-        spectrum = median(tSpectrum(ind,:,:), 2);
+        spectrum = median(tSpectrum, 2);
         setup.Averaging = "median";     % Update setup
 
     case {"minimum", "min"}
         % Perform minimum-hold averaging
-        spectrum = min(tSpectrum(ind,:,:), [], 2);
+        spectrum = min(tSpectrum, [], 2);
         setup.Averaging = "minimum";    % Update setup
 
     case "none" 
         % No averaging
-        spectrum = tSpectrum(ind,:,:);
+        spectrum = tSpectrum;
 
     case {"variance", "var"}
         % Compute variance at each spectral line
-        spectrum = var(tSpectrum(ind,:,:), 0, 2);
+        spectrum = var(tSpectrum, 0, 2);
         setup.Averaging = "variance";   % Update setup
 
     otherwise
         % Perfotm linear averaging
-        spectrum = mean(tSpectrum(ind,:,:), 2);
+        spectrum = mean(tSpectrum, 2);
         setup.Averaging = "linear";     % Update setup
 end
 
