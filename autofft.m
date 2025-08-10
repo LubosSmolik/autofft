@@ -626,8 +626,9 @@ if nargout > 3 || (setup.NumberOfAverages > 1 && setup.Averaging == "none")
     tshift = (setup.FFTLength - setup.OverlapLength) / fs;
     tseg   = (0:tshift:(setup.NumberOfAverages - 1) * tshift).';
 
-    % Compute the absolute segment times        
-    tseg = sum(setup.Window .* (0:setup.FFTLength-1).') / (setup.FFTLength * fs) + ts(1) + tseg;
+    % Compute the absolute segment times
+    tshift = ts(1) + sum(setup.Window .* (0:setup.FFTLength-1).') / (setup.FFTLength * fs);
+    tseg   = tseg + tshift;
 end
 
 % Display results
@@ -647,7 +648,7 @@ if nargout == 0 || setup.PlotLayout ~= "none"
     end
 end
  
-% Arrange outputs
+% Arrange output arguments
 % Return the analyser setup only
 if nargout == 3 && (setup.NumberOfAverages == 1 || setup.Averaging ~= "none")
     % Convert numeric representation of the window to string
