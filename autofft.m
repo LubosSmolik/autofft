@@ -470,39 +470,39 @@ end
 % Fast Fourier transform of the time-weighted segments
 tSpectrum = fft(tSegments, [], 1);
 
-% Application of the jw weigthing and computation of unscaled magnitudes
+% Application of the jw weigthing
 switch lower(setup.jwWeigthing)
     case {"1/jw2", "double integration"}
         % Apply double integration
         conjw = -4 * pi^2;
-        tSpectrum(ind,:,:) = abs((1 ./ (conjw .* freq.^2)) .* ...
-                                 tSpectrum(ind,:,:));
+        tSpectrum(ind,:,:) = (1 ./ (conjw .* freq.^2)) .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "double integration";      % Update setup
 
     case {"1/jw", "single integration"}
         % Apply single integration
         conjw = 2i * pi;
-        tSpectrum(ind,:,:) = abs((1 ./ (conjw .* freq)) .* ...
-                                 tSpectrum(ind,:,:));
+        tSpectrum(ind,:,:) = (1 ./ (conjw .* freq)) .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "single integration";      % Update setup
 
     case {"jw", "single differentiation"}
         % Apply single differentiation
         conjw = 2i * pi;
-        tSpectrum(ind,:,:) = abs(conjw .* freq .* tSpectrum(ind,:,:));
+        tSpectrum(ind,:,:) = conjw .* freq .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "single differentiation"; % Update setup
 
     case {"jw2", "double differentiation"}
         % Apply double differentiation
         conjw = -4 * pi^2;
-        tSpectrum(ind,:,:) = abs(conjw .* freq.^2 .* tSpectrum(ind,:,:));
+        tSpectrum(ind,:,:) = conjw .* freq.^2 .* tSpectrum(ind,:,:);
         setup.jwWeigthing  = "double differentiation"; % Update setup
 
     otherwise
-        % Compute the absolute value of spectrum
-        tSpectrum(ind,:,:) = abs(tSpectrum(ind,:,:));
-        setup.jwWeigthing  = "none";                   % Update setup
+        % Update setup
+        setup.jwWeigthing  = "none";
 end
+
+% Compute unscaled magnitude up to the maximum frequency
+tSpectrum(ind,:,:) = sqrt(real(tSpectrum(ind,:,:)).^2 + imag(tSpectrum(ind,:,:)).^2);
 
 % Spectral averaging and the limitation of the maximum frequency
 switch lower(setup.Averaging)
