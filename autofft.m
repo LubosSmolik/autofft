@@ -170,14 +170,16 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %                      a single figure.
 %
 % What's new in v1.5.4?
+% v1.5.4: Bug fix: Automatic plotter no longer uses white backgroud color
+%    in R2025a dark mode.
 % v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
 %    time-frequency analysis results from only one channel has been fixed.
-% v1.5.4: v1.5.4: Code optimisation: Evaluation of magnitude and spectral
-%    unit optimised. Other minor optimisations implemented and code
-%    refactored. Implemented changes reduced CPU time by up to 35 %.
+% v1.5.4: Code optimisation: Evaluation of magnitude and spectral unit
+%    optimised. Other minor optimisations implemented and code refactored.
+%    Implemented changes reduced CPU time by up to 35 %.
 % v1.5.4: Code optimisation: Error handling during filtering has been
 %   improved.
-%
+% v1.5.4: Documentation: Introduction has been revised.
 
 %% Validate number of input and output arguments
 narginchk(2, 3);
