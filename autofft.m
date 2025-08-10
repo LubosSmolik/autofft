@@ -172,9 +172,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % What's new in v1.5.4?
 % v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
 %    time-frequency analysis results from only one channel has been fixed.
-% v1.5.4: v1.5.4: Code optimisation: Evaluation of magnitude and spectral
-%    unit optimised. Other minor optimisations implemented and code
-%    refactored. Implemented changes reduced CPU time by up to 35 %.
+% v1.5.4: Code optimisation: Evaluation of magnitude and spectral unit
+%    optimised. Other minor optimisations implemented and code refactored.
+%    Implemented changes reduced CPU time by up to 35 %.
 % v1.5.4: Code optimisation: Error handling during filtering has been
 %   improved.
 %
