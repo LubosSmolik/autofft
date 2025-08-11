@@ -8,12 +8,18 @@ function win = autoKaiser(n, beta, flag)
 %
 % win = autoKaiser(n)
 % win = autoKaiser(n, beta)
+% win = autoKaiser(n, beta, flag)
 %
 % win = autoKaiser(n) returns an N-point symmetric Kaiser window with shape
 %   parameter beta = 0.5. The window is returned as a column vector.
 %
-% win = autoKaiser(n, beta) returns an N-point Kaiser window with shape
-%   parameter beta. The window is returned as a column vector.
+% win = autoKaiser(n, beta) returns an N-point symmetric Kaiser window with
+%   shape parameter beta. The window is returned as a column vector.
+%
+% win = autoKaiser(n, beta, flag) returns an N-point Kaiser window with
+%   shape parameter beta. The window can be either symmetric if the flag
+%   equals to 'symmetric' or periodic if it equals to 'periodic'.
+
 
 % CHANGELOG
 % v1.1.0 - Added support for periodic Kaiser windows
