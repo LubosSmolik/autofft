@@ -169,7 +169,13 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
 %                      a single figure.
 %
-% What's new in v1.5.4?
+% What's new in v1.5.5?
+% v1.5.5: Bug fix: Uncommented text preventing use of custom filters has
+%    been removed.
+% v1.5.5: Bug fix: Erroneous coefficient that caused bandstop filters to be
+%    generated incorrectly using autoButter function has been corrected.
+% v1.5.5: Code optimisation: Generation of windows with a very large number
+%    of samples has been optimized.
 % v1.5.4: Bug fix: Automatic plotter no longer uses white backgroud color
 %    in R2025a dark mode.
 % v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
@@ -428,7 +434,6 @@ if ~isnan(setup.HighPassFrequency)
     % setup.HighPassFrequency is not a single number
     else
         try
-            numerator and denominator coefficients b and a
             % Try to filter xs
             if iscell(setup.HighPassFrequency) && all(cellfun(@isnumeric,c))
                 % setup.HighPassFrequency is a cell array consisting of

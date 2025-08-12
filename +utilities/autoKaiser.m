@@ -2,7 +2,7 @@ function win = autoKaiser(n, beta, flag)
 %AUTOKAISER Generates a Kaiser window
 %
 % Copyright (c) 2022-2025, Lubos Smolik, Jan Rendl
-% v1.1.0 (build 11. 8. 2025)  
+% v1.1.0 (build 11. 8. 2025)
 %
 % This code is published under BSD-3-Clause License.
 %
