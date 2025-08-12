@@ -18,7 +18,7 @@ function win = autoKaiser(n, beta, flag)
 %
 % win = autoKaiser(n, beta, flag) returns an N-point Kaiser window with
 %   shape parameter beta. The window can be either symmetric if the flag
-%   equals to 'symmetric' or periodic if it equals to 'periodic'.
+%   equals to 'symmetric' or periodic if the flag equals to 'periodic'.
 
 
 % CHANGELOG
