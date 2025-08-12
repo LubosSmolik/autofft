@@ -18,6 +18,9 @@ The `autofft` package is designed to address these needs by mimicking the operat
 - __Advanced post-processing:__ can apply frequency weighting filters per IEC 61672-1:2013, spectral derivation or spectral integration.
 
 ### What's new?
+- __v1.5.5:__ _Bug fix_: Uncommented text preventing use of custom filters has been removed.
+- __v1.5.5:__ _Bug fix:_ Erroneous coefficient that caused bandstop filters to be generated incorrectly using autoButter function has been corrected.
+- __v1.5.5:__ _Code optimisation:_ Generation of windows with a very large number of samples has been optimised.
 - __v1.5.4:__ _Bug fix_: Automatic plotter no longer uses white backgroud color in R2025a dark mode.
 - __v1.5.4:__ _Bug fix_: Plotting error when the user selected tiled layout for time-frequency analysis results from only one channel has been fixed.
 - __v1.5.4:__ _Code optimisation_: Code optimisation: Evaluation of magnitude and spectral unit optimised. Other minor optimisations implemented and code refactored. Implemented changes reduced CPU time by up to 35 %.
