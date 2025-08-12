@@ -1,25 +1,20 @@
-function win = autoHann(n, flag)
-%AUTOHANN Generates a Hann window
+function win = autoKaiserBessel(n, flag)
+%AUTOKAISERBESSEL Generates a four-term Kaiser-Bessel window
 %
-% Copyright (c) 2022-2025, Lubos Smolik, Jan Rendl
-% v1.0.2 (build 12. 8. 2025)  
+% Copyright (c) 2025, Lubos Smolik
+% v1.0.0 (build 12. 8. 2025)  
 %
 % This code is published under BSD-3-Clause License.
 %
-% win = autoHann(n)
-% win = autoHann(n, flag)
+% win = autoKaiserBessel(n)
+% win = autoKaiserBessel(n, flag)
 %
-% win = autoHann(n) returns an N-point symmetric Hann window in a column
-%   vector.
+% win = autoKaiserBessel(n) returns an N-point symmetric Kaiser-Bessel
+%   window in a column vector.
 %
-% win = autoHann(n,flag) returns an N-point Hann window. The window can be
-%   either symmetric if the flag equals to 'symmetric' or periodic if it
-%   equals to 'periodic'.
-
-% CHANGELOG
-% v1.0.2 - Multiplications of vectors by scalars now use element-wise
-%          operators, i.e. '.*'
-% v1.0.1 - Input validation has been improved
+% win = autoKaiserBessel(n, flag) returns an N-point Kaiser-Bessel window.
+%   The window can be either symmetric if the flag equals to 'symmetric'
+%   or periodic if it equals to 'periodic'.
 
 % Validate number of inputs and outputs
 narginchk(1,2);
@@ -48,8 +43,16 @@ end
 
 %GENERATEWINDOW Calculates the window function
 function win = generateWindow(n, ind)
+    % Define window coefficients
+    a0 = 1;
+    a1 = 1.24;
+    a2 = 0.244;
+    a3 = 0.00305;
+    
+    x = (pi / n) .* transpose(0:n);
+    
     % Generate a sequence of N + 1 samples
-    win = 0.5 - 0.5 .* cos((2 * pi / n) .* transpose(0:n));
+    win = a0 - a1 * cos(2 * x) + a2 * cos(4 * x) - a3 * cos(6 * x);
     win = win(1:end-ind);
 end
 

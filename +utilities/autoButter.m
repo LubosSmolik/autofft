@@ -2,8 +2,8 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 % AUTOBUTTER Butterworth digital filter design
 %
 % Copyright (c) 2014                Jan Simon - original code
-% Copyright (c) 2022-2024           Lubos Smolik - validation, revisions
-% v1.1.2 (build 12. 9. 2024)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2022-2025           Lubos Smolik - validation, revisions
+% v1.1.3 (build 11. 8. 2025)        e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -37,6 +37,8 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %   and scalar g corresponding to the filter gain.
 
 % CHANGELOG
+% v1.1.3 - Fixed erroneous transformation of the analog bandstop prototype
+%        - Minor code refactoring
 % v1.1.2 - Input validation has been improved
 
 % Validate number of input arguments and input parameters
@@ -47,12 +49,12 @@ nargoutchk(2, 3);
 n = utilities.validateN(n);
 if n == 0
     if nargout == 2
-        Z = 1;  % a
-        P = 1;  % b
+        Z = 1;  % denominator (a)
+        P = 1;  % numerator (b)
     else
-        Z = 0;
-        P = 0;
-        G = 1;
+        Z = 0;  % zeros
+        P = 0;  % poles
+        G = 1;  % gain
     end
 
     return;
@@ -94,8 +96,8 @@ end
 % Construct the n-th order analog lowpass prototype
 V = tan(0.5 * pi * wn);
 
-% Temporary poles located  on the unit circle in the left-half plane
-Q = exp((0.5i * pi / n) * ((2 + n - 1):2:(3 * n - 1)));
+% Temporary poles located on the unit circle in the left-half plane
+Q = exp((0.5i * pi / n) .* ((2 + n - 1):2:(3 * n - 1)));
 nQ = size(Q, 2);
 
 % Transform the analog prototype to state-space
@@ -103,29 +105,30 @@ switch ftype
    case 'stop'
       Sg = 1 / prod(-Q);
       c  = -V(1) * V(2);
-      b  = 0.5 .* (V(2) - V(1)) * 0.5 ./ Q;
+      b  = (0.5 * (V(2) - V(1))) ./ Q;
       d  = sqrt(b .* b + c);
       Sp = [b + d, b - d];
-      Sz = sqrt(c) * (-1) .^ (0:2 * nQ - 1);
+      Sz = sqrt(c) .* (-1) .^ (0:2 * nQ - 1);
    case 'bandpass'
       Sg = (V(2) - V(1)) ^ nQ;
-      b  = (V(2) - V(1)) * 0.5 * Q;
+      b  = (0.5 * (V(2) - V(1))) .* Q;
       d  = sqrt(b .* b - V(1) * V(2));
       Sp = [b + d, b - d];
       Sz = zeros(1, nQ);
    case 'high'
-      Sg = 1 ./ prod(-Q);
+      Sg = 1 / prod(-Q);
       Sp = V ./ Q;
       Sz = zeros(1, nQ);
    case 'low'
       Sg = V ^ nQ;
-      Sp = V * Q;
+      Sp = V .* Q;
       Sz = [];
 end
 
-% Bilinear transform
+% Bilinear transform to obtain poles (P), zeros (Z) and gain (G)
 P = (1 + Sp) ./ (1 - Sp);
 Z = repmat(-1, size(P));
+
 if isempty(Sz)
    G = real(Sg / prod(1 - Sp));
 else
@@ -133,8 +136,8 @@ else
    Z(1:length(Sz)) = (1 + Sz) ./ (1 - Sz);
 end
 
-% From zeros, ples and gain to b (numerator) and a (denominator):
+% From zeros, poles and gain to b (numerator) and a (denominator)
 if nargout == 2
-   Z = G * real(poly(Z'));  % b
+   Z = G .* real(poly(Z')); % b
    P = real(poly(P));       % a
 end
