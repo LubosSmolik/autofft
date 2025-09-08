@@ -18,7 +18,7 @@ The `autofft` package is designed to address these needs by mimicking the operat
 - __Advanced post-processing:__ can apply frequency weighting filters per IEC 61672-1:2013, spectral derivation or spectral integration.
 
 ![Screenshot of a comment on a GitHub issue showing an image, added in the Markdown, of an Octocat smiling and raising a tentacle.](https://github.com/LubosSmolik/autofft/blob/main/%2Bvalidation/autofft_cpu_time.png)
-__Figure:__ CPU times required to run `autoFFT` and similar Matlab functions measured on a Code Ocean using `timeit` function, see this [reproducible capsule](https://codeocean.com/capsule/0028321/tree/v1). Each run includes a predefined number of segments weighted using a 4096-point Hann window.
+__Figure:__ CPU times required to run `autoFFT` and similar Matlab functions measured on a Code Ocean using `timeit` function, see this [reproducible capsule](https://codeocean.com/capsule/9899368/tree). Each run includes a predefined number of segments weighted using a 4096-point Hann window.
 
 ### What's new?
 - __v1.5.5:__ _Bug fix_: Uncommented text preventing use of custom filters has been removed.
