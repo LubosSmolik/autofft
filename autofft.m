@@ -1,8 +1,8 @@
 function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
-% Copyright (c) 2017-2025              Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.4 (build 10. 8. 2025)           e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2017-2026              Luboš Smolík, Jan Rendl, Roman Pašek
+% v1.5.5 (build 10. 8. 2025)           e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
