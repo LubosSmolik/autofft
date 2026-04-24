@@ -1,8 +1,14 @@
 function [ws, setup] = freqWeight(s, f, wType, setup)
+    arguments
+        s     (:,:,:) double
+        f     (:,1)   double
+        wType (1,1)   string
+        setup (1,1)   struct = struct()
+    end
 % FREQWEIGHT Applies frequency weighting filter to the input power spectrum
 %
-% Copyright (c) 2022-2025          Lubos Smolik, University of West Bohemia
-% v1.0.1 (build 2. 8. 2025)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2022-2026          Lubos Smolik, University of West Bohemia
+% v1.0.2 (build 24. 4. 2026)       e-mail: carlist{at}ntis.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -43,6 +49,7 @@ function [ws, setup] = freqWeight(s, f, wType, setup)
 %       This option returns the input power spectrum unchanged.
 
 % CHANGELOG
+% v1.0.2 - Validation block added.
 % v1.0.1 - Terminology complies with ISO 21727:2016 and IEC 61672-1:2013.
 %        - Minor performance optimisation.
 
