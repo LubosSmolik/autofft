@@ -3,7 +3,7 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %
 % Copyright (c) 2014                Jan Simon - original code
 % Copyright (c) 2022-2026           Lubos Smolik - validation, revisions
-% v1.1.4 (build 24. 11. 2025)        e-mail: carlist{at}fav.zcu.cz
+% v1.1.4 (build 24. 11. 2026)        e-mail: carlist{at}fav.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
