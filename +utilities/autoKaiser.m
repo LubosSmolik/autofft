@@ -1,8 +1,8 @@
 function win = autoKaiser(n, beta, flag)
 %AUTOKAISER Generates a Kaiser window
 %
-% Copyright (c) 2022-2025, Lubos Smolik, Jan Rendl
-% v1.1.0 (build 11. 8. 2025)
+% Copyright (c) 2022-2026, Lubos Smolik, Jan Rendl
+% v1.1.1 (build 24. 11. 2026)
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -21,6 +21,7 @@ function win = autoKaiser(n, beta, flag)
 %   equals to 'symmetric' or periodic if the flag equals to 'periodic'.
 
 % CHANGELOG
+% v1.1.1 - Validation is now compatible with Matlab 2018b and earlier
 % v1.1.0 - Added support for periodic Kaiser windows
 %        - Computation of the Kaiser window refactored
 % v1.0.1 - Input validation and performance has been improved
@@ -40,7 +41,7 @@ end
 if nargin < 2
     beta = 0.5;
 else
-    validateattributes(beta, 'numeric', {'scalar','real','nonnegative', ...
+    validateattributes(beta, {'numeric'}, {'scalar','real','nonnegative', ...
                        'finite'}, '', 'beta', 2);
     % Covert beta to double to enforce precision
     beta = double(beta);
