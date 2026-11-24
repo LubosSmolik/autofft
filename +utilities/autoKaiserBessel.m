@@ -1,8 +1,8 @@
 function win = autoKaiserBessel(n, flag)
 %AUTOKAISERBESSEL Generates a four-term Kaiser-Bessel window
 %
-% Copyright (c) 2025, Lubos Smolik
-% v1.0.0 (build 12. 8. 2025)  
+% Copyright (c) 2026, Lubos Smolik
+% v1.0.1 (build 24. 11. 2026)
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -15,6 +15,10 @@ function win = autoKaiserBessel(n, flag)
 % win = autoKaiserBessel(n, flag) returns an N-point Kaiser-Bessel window.
 %   The window can be either symmetric if the flag equals to 'symmetric'
 %   or periodic if it equals to 'periodic'.
+%
+% Changelog
+% v1.0.1 - Multiplications of vectors by scalars now use element-wise
+%          operators, i.e. '.*'
 
 % Validate number of inputs and outputs
 narginchk(1,2);
@@ -52,7 +56,7 @@ function win = generateWindow(n, ind)
     x = (pi / n) .* transpose(0:n);
     
     % Generate a sequence of N + 1 samples
-    win = a0 - a1 * cos(2 * x) + a2 * cos(4 * x) - a3 * cos(6 * x);
+    win = a0 - a1 .* cos(2 * x) + a2 .* cos(4 * x) - a3 .* cos(6 * x);
     win = win(1:end-ind);
 end
 
