@@ -56,7 +56,7 @@ function win = generateWindow(n, ind)
     x = (pi / n) .* transpose(0:n);
     
     % Generate a sequence of N + 1 samples
-    win = a0 - a1 .* cos(2 * x) + a2 .* cos(4 * x) - a3 .* cos(6 * x);
+    win = a0 - a1 .* cos(2 .* x) + a2 .* cos(4 .* x) - a3 .* cos(6 .* x);
     win = win(1:end-ind);
 end
 
