@@ -470,13 +470,15 @@ switch lower(setup.jwWeigthing)
         % Apply double integration
         conjw = -4 * pi^2;
         tSpectrum = (1 ./ (conjw .* freq.^2)) .* tSpectrum(ind,:,:);
-        setup.jwWeigthing  = "double integration";      % Update setup
+        tSpectrum(indSt,:,:) = 0;                   % Resolve dividing by 0
+        setup.jwWeigthing  = "double integration";  % Update setup
 
     case {"1/jw", "single integration"}
         % Apply single integration
         conjw = 2i * pi;
         tSpectrum = (1 ./ (conjw .* freq)) .* tSpectrum(ind,:,:);
-        setup.jwWeigthing  = "single integration";      % Update setup
+        tSpectrum(indSt,:,:) = 0;                   % Resolve dividing by 0
+        setup.jwWeigthing  = "single integration";  % Update setup
 
     case {"jw", "single differentiation"}
         % Apply single differentiation
@@ -601,14 +603,13 @@ if ~isnan(setup.dbReference)
         end
     end
 
-    % Calculate decibels
+    % Calculate decibels per ISO 80000-1 Annex C: 20 log (s_i / s_ref)
     if setup.SpectralUnit == "PSD" || setup.SpectralUnit == "power"
-        % Calculate decibels for powerspectra, i.e. 20 log (s_i / s_ref)
-        % Note that the spectrum array contains squared values, i.e. s_i^2
+        % Power spectral units are already squared, i.e. s_i^2
         spectrum = 10 * log10(spectrum / (setup.dbReference^2));
     else
-        % Calculate decibels for linear spectra, i.e. 10 log (s_i / s_ref)
-        spectrum = 10 * log10(spectrum / setup.dbReference);
+        % Linear spectral units
+        spectrum = 20 * log10(spectrum / setup.dbReference);
     end  
 end
 
