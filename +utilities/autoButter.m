@@ -2,8 +2,8 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 % AUTOBUTTER Butterworth digital filter design
 %
 % Copyright (c) 2014                Jan Simon - original code
-% Copyright (c) 2022-2025           Lubos Smolik - validation, revisions
-% v1.1.3 (build 11. 8. 2025)        e-mail: carlist{at}ntis.zcu.cz
+% Copyright (c) 2022-2026           Lubos Smolik - validation, revisions
+% v1.1.4 (build 24. 11. 2025)        e-mail: carlist{at}fav.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -37,6 +37,7 @@ function [Z, P, G] = autoButter(n, wn, varargin)
 %   and scalar g corresponding to the filter gain.
 
 % CHANGELOG
+% v1.1.4 - Validation is now compatible with Matlab 2018b and earlier
 % v1.1.3 - Fixed erroneous transformation of the analog bandstop prototype
 %        - Minor code refactoring
 % v1.1.2 - Input validation has been improved
@@ -61,7 +62,7 @@ if n == 0
 end
 
 % Validate wn and convert to double to enforce precision
-validateattributes(wn, 'numeric', {'vector','real','positive','finite'}, ...
+validateattributes(wn, {'numeric'}, {'vector','real','positive','finite'}, ...
                    '', 'wn', 2);
 wn = double(wn);
 
@@ -76,7 +77,7 @@ switch nargin
 
     case 4
         % Validate sample frequency
-        validateattributes(varargin{1}, 'numeric', {'scalar','real', ...
+        validateattributes(varargin{1}, {'numeric'}, {'scalar','real', ...
                            'positive','finite'}, '', 'fs', 3);
         
         % Compute normalized cutoff frequency wn from fc and fs
