@@ -2,7 +2,7 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % AUTOFFT Evaluates a frequency spectrum of a signal using wFFT algorithm
 %
 % Copyright (c) 2017-2026              Luboš Smolík, Jan Rendl, Roman Pašek
-% v1.5.5 (build 10. 8. 2025)           e-mail: carlist{at}ntis.zcu.cz
+% v1.5.6 (build 24. 11. 2026)             e-mail: carlist{at}fav.zcu.cz
 %
 % This code is published under BSD-3-Clause License.
 %
@@ -17,15 +17,15 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 % [s, f, t, setup] = autofft(___)
 %
 %
-% autofft(xs, fs) computes and diplays the autospectrum or spectrogram of
+% autofft(xs, fs) computes and displays the autospectrum or spectrogram of
 %   input xs using sampling frequency fs in Hz. xs can be either a vector
 %   or an array consisting of column vectors. In the latter case, each
 %   spectrum or spectrogram is shown in a separate figure.
 %
-% autofft(xs, ts) computes and diplays the autospectrum or spectrogram of
+% autofft(xs, ts) computes and displays the autospectrum or spectrogram of
 %   input xs using a vector of time stamps ts.
 % 
-% autofft(___, setup) computes and diplays the autospectrum or spectrogram
+% autofft(___, setup) computes and displays the autospectrum or spectrogram
 %   of input xs using name-value pair arguments specified in a structure
 %   array setup.
 % 
@@ -73,9 +73,9 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %
 %   - 'HighPassFrequency' - [ {NaN} | real scalar | cell of vectors [b] and
 %     [a] | filter object ]
-%     Specifies the passband frequency of an elliptic highpass filter.
-%     The filter has a slope -20 dB/dec from the passband frequency.
-%     The exact filtering process depends on the parameter value:
+%     Specifies the passband frequency of a first-order Butterworth
+%     highpass filter. The filter has a slope -20 dB/dec from the passband
+%     frequency. The filtering process depends on the parameter value:
 %     - NaN             - no highpass filtering                   {default}
 %     - 0               - DC filtering with the use of detrend function
 %     - positive scalar - DC filtering and subsequent highpass filtering
@@ -116,15 +116,15 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %      Overlap percentage of two successive segments. Use value 100 for the
 %      maximum possible overlap, i.e. 'FFTLength' - 1.
 %
-%   - 'Averaging' - [ energy | {linear} | max | median | min | var | none]
+%   - 'Averaging' - [ energy | {linear} | maximum | median | minimum | variance | none]
 %     Specifies the spectral averaging mode from: 
-%     - 'energy', 'rms'     - energy (rms) averaging
-%     - 'linear', 'lin'     - linear averaging                    {default}
-%     - 'max', 'pk', 'peak' - maximum-hold aveargaing
-%     - 'median'            - returns median specified spectral unit
-%     - 'min'               - minimum-hold aveargaing
-%     - 'var'               - returns variance of specified spectral unit
-%     - 'none'              - returns the STFT with no spectral averaging
+%     - 'energy'   - energy (rms) averaging
+%     - 'linear'   - linear averaging                             {default}
+%     - 'maximum'  - maximum-hold averaging
+%     - 'median'   - returns median specified spectral unit
+%     - 'minimum'  - minimum-hold averaging
+%     - 'variance' - returns variance of specified spectral unit
+%     - 'none'     - returns the STFT with no spectral averaging
 %
 %   - 'jwWeigthing' - [ '1/jw2' | '1/jw' | {'1'} | 'jw' | 'jw2' ]
 %     Use this parameter to apply a frequency-domain post-weighting to the
@@ -136,14 +136,14 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %     - 'jw'    - single differentiation
 %     - 'jw2'   - double differentiation
 %
-%   - 'SpectralUnit' - [ {'pow'} | 'rms' | 'pk' | 'pp' | 'psd' | 'rsd' ]
+%   - 'SpectralUnit' - [ {'power'} | 'rms' | '0-pk' | 'pk-pk' | 'psd' | 'rmssd' ]
 %     Specifies absolute unit used to compute estimates from:
-%     - 'pow', 'power' - autospectrum (square of rms magnitudes)  {default}
-%     - 'rms'          - linear spectrum with rms magnitude
-%     - 'pk', '0-pk'   - linear spectrum with 0-peak magnitude
-%     - 'pp', 'pk-pk'  - linear spectrum with peak-peak magnitude
-%     - 'psd'          - power spectral density
-%     - 'rsd','rmssd'  - root mean square of power spectral density 
+%     - 'power' - autospectrum (square of rms magnitudes)         {default}
+%     - 'rms'   - linear spectrum with rms magnitude
+%     - '0-pk'  - linear spectrum with 0-peak magnitude
+%     - 'pk-pk' - linear spectrum with peak-peak magnitude
+%     - 'psd'   - power spectral density
+%     - 'rmssd' - root mean square of power spectral density 
 %
 %   - 'EngineeringUnit' - [ character {'EU'} | string ]
 %     Specifies a unit of measure of xs. This parameter is used to generate
@@ -160,32 +160,18 @@ function [spectrum, freq, varargout] = autofft(xs, ts, userSetup)
 %   - 'PlotLayout' - [ 'none' | 'separated' | 'stacked' | 'tiled' ]
 %      Specifies, which layout is used to visualise results.
 %      - 'none'      - Does not visualise any results. It is a {default}
-%                      option if auttofft is called with no output.
+%                      option when auttofft is called with at least one
+%                      output variable.
 %      - 'separated' - Visualise each spectrum or spectrogram in a separate
-%                      figure. It is a {default} option if auttofft is
-%                      called with at least one output variable.
+%                      figure. It is a {default} option when auttofft is
+%                      called with no output variable.
 %      - 'stacked'   - Plots spectra into single axes. This value cannot be
 %                      used to visualise spectrograms.
 %      - 'tiled'     - Creates a panel for each spectrum or spectrogram in
 %                      a single figure.
 %
-% What's new in v1.5.5?
-% v1.5.5: Bug fix: Uncommented text preventing use of custom filters has
-%    been removed.
-% v1.5.5: Bug fix: Erroneous coefficient that caused bandstop filters to be
-%    generated incorrectly using autoButter function has been corrected.
-% v1.5.5: Code optimisation: Generation of windows with a very large number
-%    of samples has been optimized.
-% v1.5.4: Bug fix: Automatic plotter no longer uses white backgroud color
-%    in R2025a dark mode.
-% v1.5.4: Bug fix: Plotting error when the user selected tiled layout for
-%    time-frequency analysis results from only one channel has been fixed.
-% v1.5.4: Code optimisation: Evaluation of magnitude and spectral unit
-%    optimised. Other minor optimisations implemented and code refactored.
-%    Implemented changes reduced CPU time by up to 35 %.
-% v1.5.4: Code optimisation: Error handling during filtering has been
-%   improved.
-% v1.5.4: Documentation: Introduction has been revised.
+% What's new in v1.5.6?
+% v1.5.6:
 
 %% Validate number of input and output arguments
 narginchk(2, 3);
@@ -388,7 +374,7 @@ else
 
             if isnan(beta) % Use the default Kaiser window (beta = 1.6)
                 setup.Window = utilities.autoKaiser(setup.FFTLength, 1.6);
-                windowName   = "Kaiser, b = 0.5";
+                windowName   = "Kaiser, b = 1.6";
             else
                 setup.Window = utilities.autoKaiser(setup.FFTLength, beta);
                 windowName   = "Kaiser, b = " + string(beta);
@@ -435,7 +421,8 @@ if ~isnan(setup.HighPassFrequency)
     else
         try
             % Try to filter xs
-            if iscell(setup.HighPassFrequency) && all(cellfun(@isnumeric,c))
+            if iscell(setup.HighPassFrequency) && ...
+                all(cellfun(@isnumeric, setup.HighPassFrequency))
                 % setup.HighPassFrequency is a cell array consisting of
                 % vectors b and a (i.e. {[b], [a]}). Vectors b and a
                 % contain numerator and denominator coefficients of a
@@ -445,8 +432,7 @@ if ~isnan(setup.HighPassFrequency)
             else
                 % Try to apply object stored in setup.HighPassFrequency
                 % Note: This is a crude solution, but Matlab can recognise
-                %   filters only if the DSP Toolbox is installed using e.g.
-                %   isfir and issos functions
+                %   filters only using isfir and issos from the DSP Toolbox
                 temp = filter(setup.HighPassFrequency, xs);
             end
 
@@ -459,7 +445,7 @@ if ~isnan(setup.HighPassFrequency)
                 end
         catch ME
             % Throw warning if the filtering fails
-            warning(ME.identifier, "Filtering failed with error: %s" + newline + ...
+            warning("Filtering failed with error: %s" + newline + ...
                     "Frequency analysis will be performed on unfiltered data.", ...
                     ME.message);
         end
